@@ -50,6 +50,15 @@ class GitHubClient:
         """
         self.config = config
         
+        # Status mapping for better user experience
+        self.status_mapping = {
+            'open': {'state': 'open'},
+            'closed': {'state': 'closed'},
+            'in_progress': {'state': 'open', 'labels': ['in progress']},
+            'reopened': {'state': 'open'},
+            'done': {'state': 'closed', 'labels': ['done']}
+        }
+        
         if config:
             self.token = config.token
             self._default_owner = config.owner
@@ -397,6 +406,75 @@ class GitHubClient:
             Updated issue data
         """
         return self.update_issue(issue_number, owner=owner, repo=repo, state='closed')
+        
+    def update_issue_status(
+        self,
+        issue_number: int,
+        status: str,
+        owner: Optional[str] = None,
+        repo: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Update the status of an issue with a user-friendly status name.
+        
+        Args:
+            issue_number: The issue number to update
+            status: The new status (open, closed, in_progress, reopened, done)
+            owner: Repository owner (optional if set in config)
+            repo: Repository name (optional if set in config)
+            
+        Returns:
+            Updated issue data
+            
+        Raises:
+            ValueError: If the status is invalid
+            RequestException: If the API request fails
+        """
+        status = status.lower()
+        if status not in self.status_mapping:
+            valid_statuses = "', '".join(self.status_mapping.keys())
+            raise ValueError(f"Invalid status: '{status}'. Must be one of: '{valid_statuses}'")
+            
+        # Get the status configuration
+        status_config = self.status_mapping[status]
+        update_data = {}
+        
+        # Get current issue to preserve existing labels
+        current_issue = self.get_issue(issue_number, owner=owner, repo=repo)
+        if not current_issue:
+            raise RequestException(f"Issue #{issue_number} not found")
+            
+        # Handle state update
+        if 'state' in status_config:
+            update_data['state'] = status_config['state']
+            
+        # Handle labels
+        if 'labels' in status_config:
+            current_labels = {label['name'] for label in current_issue.get('labels', [])}
+            
+            # Remove any existing status-related labels
+            status_labels = set()
+            for config in self.status_mapping.values():
+                if 'labels' in config:
+                    if isinstance(config['labels'], list):
+                        status_labels.update(config['labels'])
+                    else:
+                        status_labels.add(config['labels'])
+            
+            # Keep only non-status labels
+            new_labels = [label for label in current_labels if label not in status_labels]
+            
+            # Add new status labels if any
+            if 'labels' in status_config:
+                if isinstance(status_config['labels'], list):
+                    new_labels.extend(status_config['labels'])
+                else:
+                    new_labels.append(status_config['labels'])
+            
+            update_data['labels'] = new_labels
+        
+        # Update the issue with the new state and labels
+        return self.update_issue(issue_number, owner=owner, repo=repo, **update_data)
         
     def check_existing_issue(
         self,

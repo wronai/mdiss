@@ -10,7 +10,12 @@ from .models import FailedCommand
 
 
 class MarkdownParser:
-    """Parser for extracting code blocks and commands from markdown files."""
+    """Parser for extracting code blocks and commands from markdown files.
+    
+    This parser supports multiple formats:
+    1. Code blocks with shell commands (```bash ... ```)
+    2. Markdown sections with command details (## 1. Command: ...)
+    """
     
     def __init__(self):
         """Initialize the MarkdownParser."""
@@ -74,6 +79,45 @@ class MarkdownParser:
                 metadata[key] = value
                 
         return metadata
+        
+    def _update_command_data(self, cmd_data: Dict[str, Any], key: str, value: str) -> None:
+        """
+        Update command data with proper type conversion and key handling.
+        
+        Args:
+            cmd_data: Dictionary to update with command data
+            key: The key to update
+            value: The value to set
+        """
+        if not value:
+            return
+            
+        key_lower = key.lower()
+        
+        if key_lower == 'command':
+            cmd_data['command'] = value.strip('`')
+        elif key_lower == 'source':
+            cmd_data['source'] = value
+        elif key_lower == 'type':
+            cmd_data['command_type'] = value.lower()
+        elif key_lower == 'status':
+            cmd_data['status'] = self._clean_status(value)
+        elif key_lower in ('return code', 'return_code'):
+            try:
+                cmd_data['return_code'] = int(value)
+            except (ValueError, TypeError):
+                cmd_data['return_code'] = 1
+        elif key_lower in ('execution time', 'execution_time'):
+            try:
+                cmd_data['execution_time'] = float(value.rstrip('s').strip())
+            except (ValueError, TypeError):
+                pass
+        elif key_lower in ('output', 'stdout'):
+            cmd_data['output'] = value
+        elif key_lower in ('error', 'error_output', 'stderr'):
+            cmd_data['error_output'] = value
+        elif key_lower == 'metadata':
+            cmd_data['metadata'] = self._parse_metadata(value)
 
     def parse_file(self, file_path: str) -> List[Dict[str, Any]]:
         """
@@ -192,6 +236,128 @@ class MarkdownParser:
         # In a real scenario, you would execute the commands and check for failures
         return []
         
+    def parse_failed_commands(self, file_path: str) -> List[Dict[str, Any]]:
+        """
+        Parse failed commands from a markdown file with specific format.
+        
+        Args:
+            file_path: Path to the markdown file with failed commands
+            
+        Returns:
+            List of dictionaries with command information
+            
+        Raises:
+            FileNotFoundError: If the specified file does not exist
+        """
+        path = Path(file_path)
+        if not path.exists() or not path.is_file():
+            raise FileNotFoundError(f"File not found: {file_path}")
+            
+        try:
+            content = path.read_text(encoding='utf-8')
+            sections = content.split('---\n\n## ')
+            
+            commands = []
+            for section in sections[1:]:  # Skip the first section (header)
+                try:
+                    # Parse command details from section
+                    lines = section.split('\n')
+                    title = lines[0].strip('# ').strip()
+                    
+                    # Initialize command data
+                    cmd_data = {
+                        'title': title,
+                        'command': '',
+                        'source': '',
+                        'command_type': 'make_target',
+                        'status': 'Failed',
+                        'return_code': 1,
+                        'execution_time': 0.0,
+                        'output': '',
+                        'error_output': '',
+                        'metadata': {}
+                    }
+                    
+                    # Parse section content
+                    current_key = None
+                    current_value = []
+                    
+                    for line in lines[1:]:
+                        line = line.strip()
+                        if not line:
+                            continue
+                            
+                        # Check for key-value pairs
+                        if line.startswith('**'):
+                            # Save previous key-value pair
+                            if current_key and current_value:
+                                value = '\n'.join(current_value).strip()
+                                if current_key.lower() == 'command':
+                                    cmd_data['command'] = value.strip('`')
+                                elif current_key.lower() == 'source':
+                                    cmd_data['source'] = value
+                                elif current_key.lower() == 'type':
+                                    cmd_data['command_type'] = value.lower()
+                                elif current_key.lower() == 'status':
+                                    cmd_data['status'] = self._clean_status(value)
+                                elif current_key.lower() == 'return code':
+                                    try:
+                                        cmd_data['return_code'] = int(value)
+                                    except (ValueError, TypeError):
+                                        cmd_data['return_code'] = 1
+                                elif current_key.lower() == 'execution time':
+                                    try:
+                                        cmd_data['execution_time'] = float(value.rstrip('s'))
+                                    except (ValueError, TypeError):
+                                        pass
+                                
+                                current_key = None
+                                current_value = []
+                            
+                            # Start new key-value pair
+                            key_match = re.match(r'\*\*([^:]+):\*\*', line)
+                            if key_match:
+                                current_key = key_match.group(1).strip()
+                                value_part = line[key_match.end():].strip()
+                                if value_part:
+                                    current_value.append(value_part)
+                        elif current_key is not None:
+                            current_value.append(line)
+                        elif line.startswith('```'):
+                            # Skip code block markers
+                            continue
+                        elif line.startswith('**Metadata:**'):
+                            # Parse metadata section
+                            metadata_text = '\n'.join(lines[lines.index(line) + 1:])
+                            cmd_data['metadata'] = self._parse_metadata(metadata_text)
+                            break
+                    
+                    # Save the last key-value pair
+                    if current_key and current_value:
+                        value = '\n'.join(current_value).strip()
+                        if current_key.lower() == 'command':
+                            cmd_data['command'] = value.strip('`')
+                        elif current_key.lower() == 'source':
+                            cmd_data['source'] = value
+                        elif current_key.lower() == 'type':
+                            cmd_data['command_type'] = value.lower()
+                    
+                    # Add to commands list
+                    commands.append(cmd_data)
+                    
+                except Exception as e:
+                    print(f"Error parsing section: {str(e)}")
+                    continue
+                    
+            return commands
+            
+        except Exception as e:
+            return [{
+                'error': f"Failed to parse failed commands from {file_path}: {str(e)}",
+                'file': file_path,
+                'commands': []
+            }]
+    
     def get_statistics(self, commands: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Generate statistics about the commands.

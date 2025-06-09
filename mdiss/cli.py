@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from . import __version__
 from .parser import MarkdownParser
 from .github_client import GitHubClient
-from .models import GitHubConfig
+from .models import GitHubConfig, FailedCommand
 
 console = Console()
 
@@ -88,9 +88,36 @@ def create(
     # Parsowanie pliku
     console.print(f"📖 Parsowanie pliku: {markdown_file}")
     parser = MarkdownParser()
-
     try:
-        commands = parser.parse_file(str(markdown_file))
+        # First try the specialized failed commands parser
+        command_dicts = parser.parse_failed_commands(str(markdown_file))
+        
+        # Fall back to the generic parser if no commands were found
+        if not command_dicts or (len(command_dicts) == 1 and 'error' in command_dicts[0]):
+            command_dicts = parser.parse_file(str(markdown_file))
+            
+        # Convert dictionaries to FailedCommand objects
+        commands = []
+        for cmd_dict in command_dicts:
+            if isinstance(cmd_dict, dict) and 'error' not in cmd_dict:
+                try:
+                    # Map the parsed dictionary to FailedCommand fields
+                    cmd = FailedCommand(
+                        title=cmd_dict.get('title', 'Unknown Command'),
+                        command=cmd_dict.get('command', ''),
+                        source=cmd_dict.get('source', ''),
+                        command_type=cmd_dict.get('command_type', 'shell'),
+                        status=cmd_dict.get('status', 'Failed'),
+                        return_code=cmd_dict.get('return_code', 1),
+                        execution_time=cmd_dict.get('execution_time', 0.0),
+                        output=cmd_dict.get('output', ''),
+                        error_output=cmd_dict.get('error_output', ''),
+                        metadata=cmd_dict.get('metadata', {})
+                    )
+                    commands.append(cmd)
+                except Exception as e:
+                    console.print(f"⚠️  Błąd konwersji polecenia: {e}")
+                    continue
     except Exception as e:
         console.print(f"❌ [red]Błąd parsowania: {e}[/red]")
         sys.exit(1)
@@ -110,6 +137,8 @@ def create(
         console.print(f"\n🎯 Tworzenie issues w repozytorium {repo_owner}/{repo_name}...")
         created = client.bulk_create_issues(
             commands,
+            owner=repo_owner,
+            repo=repo_name,
             skip_existing=skip_existing,
             dry_run=False
         )
@@ -118,8 +147,14 @@ def create(
 
 @cli.command()
 @click.argument('markdown_file', type=click.Path(exists=True, path_type=Path))
-def analyze(markdown_file: Path):
-    """Analizuje plik markdown i pokazuje statystyki."""
+@click.option('--verbose', '-v', is_flag=True, help='Pokaż szczegółowe informacje o komendach')
+def analyze(markdown_file: Path, verbose: bool):
+    """Analizuje plik markdown i pokazuje statystyki.
+    
+    Przykłady:
+        mdiss analyze plik.md         # Podstawowe statystyki
+        mdiss analyze plik.md -v      # Szczegółowe informacje o komendach
+    """
 
     console.print(f"📊 [bold blue]Analiza pliku:[/bold blue] {markdown_file}")
     console.print("=" * 60)
@@ -138,6 +173,24 @@ def analyze(markdown_file: Path):
 
     # Statystyki podstawowe
     stats = parser.get_statistics(commands)
+    
+    # Calculate additional statistics
+    total_commands = len(commands)
+    total_time = sum(float(cmd.get('execution_time', 0)) for cmd in commands)
+    timeout_count = sum(1 for cmd in commands if cmd.get('status', '').lower() == 'timeout')
+    critical_count = sum(1 for cmd in commands if any(
+        indicator in (cmd.get('error_output', '') or '').lower()
+        for indicator in ['segmentation fault', 'core dumped', 'critical error', 'fatal error', 'system error']
+    ))
+    
+    # Update stats with calculated values
+    stats.update({
+        'total_commands': total_commands,
+        'average_execution_time': round(total_time / total_commands, 2) if total_commands > 0 else 0,
+        'timeout_count': timeout_count,
+        'critical_count': critical_count
+    })
+    
     _show_statistics(stats)
 
     # Analiza błędów
@@ -148,7 +201,24 @@ def analyze(markdown_file: Path):
     category_stats = {}
     priority_stats = {}
 
-    for command in commands:
+    for cmd_data in commands:
+        # Convert dictionary to FailedCommand if needed
+        if isinstance(cmd_data, dict):
+            command = FailedCommand(
+                title=cmd_data.get('title', 'Unknown Command'),
+                command=cmd_data.get('command', ''),
+                source=cmd_data.get('source', ''),
+                command_type=cmd_data.get('command_type', 'unknown'),
+                status=cmd_data.get('status', 'Failed'),
+                return_code=cmd_data.get('return_code', 1),
+                execution_time=float(cmd_data.get('execution_time', 0)),
+                output=cmd_data.get('output', ''),
+                error_output=cmd_data.get('error_output', cmd_data.get('error', '')),
+                metadata=cmd_data.get('metadata', {})
+            )
+        else:
+            command = cmd_data
+            
         analysis = analyzer.analyze(command)
 
         # Kategorie
@@ -160,6 +230,45 @@ def analyze(markdown_file: Path):
         priority_stats[pri] = priority_stats.get(pri, 0) + 1
 
     _show_analysis_stats(category_stats, priority_stats)
+    
+    # Pokaż szczegółowe informacje o komendach, jeśli włączono tryb verbose
+    if verbose and commands:
+        from rich.table import Table
+        
+        console.print("\n🔍 [bold]Szczegółowe informacje o komendach:[/bold]")
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Lp.", style="cyan", width=4)
+        table.add_column("Komenda", style="white")
+        table.add_column("Plik źródłowy", style="green")
+        table.add_column("Kategoria", style="yellow")
+        table.add_column("Priorytet", style="red")
+        
+        for i, cmd in enumerate(commands[:20], 1):  # Ogranicz do pierwszych 20 komend
+            if isinstance(cmd, dict):
+                cmd_text = cmd.get('command', 'Brak komendy')
+                source = cmd.get('file', 'Nieznane źródło')
+            else:
+                cmd_text = getattr(cmd, 'command', 'Brak komendy')
+                source = getattr(cmd, 'source', 'Nieznane źródło')
+            
+            # Analizuj komendę, aby uzyskać kategorię i priorytet
+            analysis = analyzer.analyze(cmd)
+            
+            # Skróć długie komendy
+            display_cmd = cmd_text[:50] + "..." if len(cmd_text) > 50 else cmd_text
+            
+            table.add_row(
+                str(i),
+                display_cmd,
+                str(source)[:30] + "..." if len(str(source)) > 30 else str(source),
+                analysis.category.value,
+                analysis.priority.value.upper()
+            )
+        
+        console.print(table)
+        
+        if len(commands) > 20:
+            console.print(f"\nℹ️  Pokazano 20 z {len(commands)} znalezionych komend. Użyj filtrowania, aby zawęzić wyniki.")
 
 
 @cli.command()
@@ -234,73 +343,210 @@ def _get_token(token: Optional[str], token_file: Optional[Path]) -> Optional[str
 
 def _show_dry_run_preview(commands, client):
     """Pokazuje podgląd w trybie dry run."""
-    console.print("\n🧪 [yellow]DRY RUN MODE[/yellow] - Podgląd issues:")
-    
-    from rich.table import Table
+    from rich.panel import Panel
+    from rich.markdown import Markdown
     from .analyzer import ErrorAnalyzer
     from .models import FailedCommand
     
     analyzer = ErrorAnalyzer()
     
+    console.print("\n🧪 [bold yellow]DRY RUN MODE - PODGLĄD ZGŁOSZEŃ[/bold yellow]")
+    console.print("=" * 60)
+    
+    # Pokaż podsumowanie
+    console.print(f"\n📋 [bold]Podsumowanie:[/bold] {len(commands)} zgłoszeń do utworzenia")
+    
+    # Tabela podsumowująca
+    from rich.table import Table
     table = Table(show_header=True, header_style="bold magenta")
-    table.add_column("Nr", style="cyan", width=4)
+    table.add_column("#", style="cyan", width=4)
     table.add_column("Tytuł", style="white")
-    table.add_column("Komenda", style="magenta")
-    table.add_column("Priorytet", style="yellow")
     table.add_column("Kategoria", style="green")
-
-    for i, cmd_data in enumerate(commands[:10], 1):  # Pokażemy pierwsze 10
-        # Create a FailedCommand object from the command data
+    table.add_column("Priorytet", style="yellow")
+    
+    for i, cmd_data in enumerate(commands, 1):
+        # Konwersja na FailedCommand jeśli potrzeba
         if isinstance(cmd_data, dict):
+            cmd_text = cmd_data.get('command') or cmd_data.get('code_block') or cmd_data.get('original_line', '')
+            cmd_text = cmd_text.strip()
+            
+            if not cmd_text and 'code_block' in cmd_data:
+                first_line = cmd_data['code_block'].split('\n')[0].strip()
+                cmd_text = first_line if first_line else 'Brak komendy'
+            
+            title = cmd_text.split('\n')[0].strip() if cmd_text else 'Nieznana komenda'
+            
             command = FailedCommand(
-                title=cmd_data.get('command', 'Unknown Command'),
-                command=cmd_data.get('command', ''),
+                title=title[:100],
+                command=cmd_text,
                 source=cmd_data.get('file', 'unknown'),
                 command_type=cmd_data.get('command_type', 'shell'),
                 status='Failed',
                 return_code=cmd_data.get('return_code', 1),
                 execution_time=0.0,
-                output='',
-                error_output=cmd_data.get('error_output', ''),
+                output=cmd_data.get('output', ''),
+                error_output=cmd_data.get('error_output', cmd_data.get('error', '')),
                 metadata=cmd_data.get('metadata', {})
             )
         else:
             command = cmd_data
-            
-        analysis = analyzer.analyze(command)
-        title = cmd_data.get('command', 'Unknown Command') if isinstance(cmd_data, dict) else command.title
         
+        analysis = analyzer.analyze(command)
+        
+        # Dodaj do tabeli podsumowującej
         table.add_row(
             str(i),
-            title[:50] + "..." if len(title) > 50 else title,
-            command.command[:30] + "..." if len(command.command) > 30 else command.command,
-            analysis.priority.value.upper(),
-            analysis.category.value
+            command.title[:50] + ("..." if len(command.title) > 50 else ""),
+            analysis.category.value,
+            analysis.priority.value.upper()
+        )
+    
+    console.print(table)
+    
+    # Szczegółowy podgląd każdego zgłoszenia
+    console.print("\n🔍 [bold]Szczegółowy podgląd zgłoszeń:[/bold]")
+    
+    for i, cmd_data in enumerate(commands, 1):
+        if isinstance(cmd_data, dict):
+            cmd_text = cmd_data.get('command') or cmd_data.get('code_block') or cmd_data.get('original_line', '')
+            cmd_text = cmd_text.strip()
+            
+            if not cmd_text and 'code_block' in cmd_data:
+                first_line = cmd_data['code_block'].split('\n')[0].strip()
+                cmd_text = first_line if first_line else 'Brak komendy'
+            
+            title = cmd_text.split('\n')[0].strip() if cmd_text else 'Nieznana komenda'
+            
+            command = FailedCommand(
+                title=title[:100],
+                command=cmd_text,
+                source=cmd_data.get('file', 'unknown'),
+                command_type=cmd_data.get('command_type', 'shell'),
+                status='Failed',
+                return_code=cmd_data.get('return_code', 1),
+                execution_time=0.0,
+                output=cmd_data.get('output', ''),
+                error_output=cmd_data.get('error_output', cmd_data.get('error', '')),
+                metadata=cmd_data.get('metadata', {})
+            )
+        else:
+            command = cmd_data
+        
+        analysis = analyzer.analyze(command)
+        
+        # Generate issue title and header
+        issue_title = f"Fix: {command.title}"
+        
+        # Format command section with syntax highlighting
+        command_section = f"""## 📋 Command
+```bash
+{command}
+```
+""".format(command=command.command.strip())
+
+        # Format standard output if available
+        output_section = ""
+        if command.output and command.output.strip():
+            output_section = f"""**Output:**
+```
+{output}
+```
+""".format(output=command.output.strip())
+
+        # Format error output with proper escaping
+        error_section = ""
+        if command.error_output and command.error_output.strip():
+            error_section = f"""
+**Error Output:**
+```
+{error_output}
+```
+""".format(error_output=command.error_output.strip())
+
+        # Format solution section if available
+        solution_section = ""
+        if analysis.suggested_solution:
+            solution_section = f"""## 💡 Suggested Solution
+{solution}
+""".format(solution=analysis.suggested_solution.strip())
+
+        # Format metadata in a clean, organized way
+        metadata_section = f"""
+---
+### 📝 Metadata
+| Field | Value |
+|-------|-------|
+| **Source** | `{source}` |
+| **Exit Code** | `{return_code}` |
+| **Execution Time** | {exec_time:.2f}s |
+| **Category** | `{category}` |
+| **Priority** | `{priority}` |
+| **Status** | `{status}` |
+
+### 🏷️ Labels
+- `priority:{priority_lower}`
+- `category:{category_lower}`
+- `bug`
+""".format(
+            source=command.source,
+            return_code=command.return_code,
+            exec_time=command.execution_time,
+            category=analysis.category.value,
+            priority=analysis.priority.value.upper(),
+            status=command.status,
+            priority_lower=analysis.priority.value.lower(),
+            category_lower=analysis.category.value.lower()
         )
 
-    console.print(table)
-
-    if len(commands) > 10:
-        console.print(f"\nℹ️  Pokazano 10 z {len(commands)} poleceń. Reszta została pominięta.")
-    console.print("\nℹ️  [yellow]To jest podgląd. Żadne dane nie zostały wysłane na GitHub.[/yellow]")
-    if len(commands) > 10:
-        console.print(f"... i {len(commands) - 10} więcej")
+        # Combine all sections
+        issue_body = "\n".join(filter(None, [
+            command_section,
+            error_section,
+            output_section,
+            solution_section,
+            metadata_section
+        ]))
+        
+        # Wyświetl panel z podglądem zgłoszenia
+        console.print(Panel(
+            Markdown(issue_body),
+            title=f"[bold]Zgłoszenie #{i}: {issue_title}",
+            title_align="left",
+            border_style="blue",
+            padding=(1, 2)
+        ))
+    
+    console.print("\nℹ️  [yellow]TO JEST TYLKO PODGLĄD. Żadne dane nie zostały wysłane na GitHub.[/yellow]")
+    console.print(f"ℹ️  Liczba zgłoszeń do utworzenia: [bold]{len(commands)}[/bold]")
 
 
 def _show_statistics(stats):
     """Pokazuje statystyki parsowania."""
+    if not stats:
+        console.print("❌ [red]Brak danych statystycznych do wyświetlenia.[/red]")
+        return
+        
     console.print(f"\n📈 [bold]Statystyki:[/bold]")
-    console.print(f"  • Całkowita liczba poleceń: {stats['total_commands']}")
-    console.print(f"  • Średni czas wykonania: {stats['average_execution_time']}s")
-    console.print(f"  • Timeout'y: {stats['timeout_count']}")
-    console.print(f"  • Krytyczne błędy: {stats['critical_count']}")
+    console.print(f"  • Całkowita liczba poleceń: {stats.get('total_commands', 0)}")
+    
+    # Only show average execution time if it exists
+    if 'average_execution_time' in stats:
+        console.print(f"  • Średni czas wykonania: {stats['average_execution_time']}s")
+    
+    # Only show timeout count if it exists
+    if 'timeout_count' in stats:
+        console.print(f"  • Timeout'y: {stats['timeout_count']}")
+    
+    # Only show critical count if it exists
+    if 'critical_count' in stats:
+        console.print(f"  • Krytyczne błędy: {stats['critical_count']}")
 
-    if stats['command_types']:
+    if stats.get('command_types'):
         console.print(f"\n🔧 [bold]Typy poleceń:[/bold]")
         for cmd_type, count in sorted(stats['command_types'].items(), key=lambda x: x[1], reverse=True):
             console.print(f"  • {cmd_type}: {count}")
 
-    if stats['return_codes']:
+    if stats.get('return_codes'):
         console.print(f"\n🚨 [bold]Kody błędów:[/bold]")
         for code, count in sorted(stats['return_codes'].items(), key=lambda x: x[1], reverse=True):
             console.print(f"  • {code}: {count}")
@@ -358,6 +604,39 @@ def _show_issues_table(issues):
         )
 
     console.print(table)
+
+
+@cli.command()
+@click.argument('issue_number', type=int)
+@click.argument('status', type=click.Choice(['open', 'closed', 'in_progress', 'reopened', 'done'], case_sensitive=False))
+@click.option('--token', '-t', help='GitHub token (or set GITHUB_TOKEN env var)')
+@click.option('--token-file', type=click.Path(exists=True), help='File containing GitHub token')
+@click.option('--repo-owner', '-o', required=True, help='Repository owner')
+@click.option('--repo-name', '-r', required=True, help='Repository name')
+def update_status(issue_number: int, status: str, token: Optional[str], token_file: Optional[Path], 
+                repo_owner: str, repo_name: str):
+    """Zaktualizuj status zgłoszenia na GitHubie.
+    
+    Przykłady:
+        mdiss update-status 123 in_progress -o wronai -r mdiss
+        mdiss update-status 123 done -o wronai -r mdiss --token ghp_xxx
+    """
+    _load_env()
+    token = _get_token(token, token_file)
+    
+    if not token:
+        console.print("❌ [red]Brak tokenu GitHub. Użyj --token lub ustaw GITHUB_TOKEN.[/red]")
+        sys.exit(1)
+    
+    client = GitHubClient(GitHubConfig(token=token, owner=repo_owner, repo=repo_name))
+    
+    try:
+        issue = client.update_issue_status(issue_number, status)
+        console.print(f"✅ [green]Zaktualizowano status zgłoszenia #{issue_number} na '{status}'[/green]")
+        console.print(f"🔗 [blue]{issue['html_url']}[/blue]")
+    except Exception as e:
+        console.print(f"❌ [red]Błąd podczas aktualizacji zgłoszenia: {e}[/red]")
+        sys.exit(1)
 
 
 @cli.command()
