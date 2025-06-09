@@ -118,6 +118,7 @@ mdiss list-issues owner repo --state closed --labels "bug,high"
 mdiss automatycznie kategoryzuje błędy i określa priorytety:
 
 ### Kategorie błędów
+```markdown
 | Kategoria | Opis | Przykład |
 |-----------|------|----------|
 | `dependencies` | Problemy z zależnościami | Poetry lock file issues |
@@ -126,7 +127,7 @@ mdiss automatycznie kategoryzuje błędy i określa priorytety:
 | `timeout` | Przekroczenie czasu | Command timed out |
 | `syntax` | Błędy składni | YAML parsing errors |
 | `configuration` | Problemy konfiguracji | Invalid config files |
-
+```
 ### Priorytety
 - **CRITICAL** - Segmentation faults, krytyczne błędy systemu
 - **HIGH** - Timeouts, problemy z dependencies

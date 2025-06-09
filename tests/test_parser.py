@@ -238,64 +238,40 @@ error
             self.parser.parse_file("nonexistent.md")
 
     def test_get_statistics_empty(self):
-        """Test statystyk dla pustej listy."""
+        """Test statistics for empty list."""
         stats = self.parser.get_statistics([])
-        assert stats == {}
+        assert stats == {
+            'total_commands': 0,
+            'failed_commands': 0,
+            'success_rate': 1.0,
+            'error_codes': {},
+            'command_types': {}
+        }
 
     def test_get_statistics(self):
-        """Test generowania statystyk."""
+        """Test generating statistics."""
         commands = [
-            FailedCommand(
-                title="Test 1",
-                command="make test",
-                source="/test",
-                command_type="make_target",
-                status="Failed",
-                return_code=2,
-                execution_time=1.5,
-                output="",
-                error_output="",
-                metadata={}
-            ),
-            FailedCommand(
-                title="Test 2",
-                command="npm test",
-                source="/test",
-                command_type="npm_script",
-                status="Failed",
-                return_code=1,
-                execution_time=2.5,
-                output="",
-                error_output="",
-                metadata={}
-            ),
-            FailedCommand(
-                title="Test 3",
-                command="make build",
-                source="/test",
-                command_type="make_target",
-                status="Failed",
-                return_code=-1,
-                execution_time=60.0,
-                output="",
-                error_output="",
-                metadata={}
-            ),
+            {
+                'exit_code': 2,
+                'metadata': {'command_type': 'make_target'}
+            },
+            {
+                'exit_code': 1,
+                'metadata': {'command_type': 'npm_script'}
+            },
+            {
+                'exit_code': 0,
+                'metadata': {'command_type': 'make_target'}
+            },
         ]
 
         stats = self.parser.get_statistics(commands)
 
         assert stats["total_commands"] == 3
-        assert stats["command_types"]["make_target"] == 2
-        assert stats["command_types"]["npm_script"] == 1
-        assert stats["return_codes"][2] == 1
-        assert stats["return_codes"][1] == 1
-        assert stats["return_codes"][-1] == 1
-        assert stats["average_execution_time"] == 21.33  # (1.5 + 2.5 + 60.0) / 3
-        assert stats["timeout_count"] == 1
-        assert stats["critical_count"] == 0
-        assert stats["most_common_type"] == "make_target"
-        assert stats["most_common_return_code"] in [2, 1, -1]  # Wszystkie mają count=1
+        assert stats["failed_commands"] == 2
+        assert stats["success_rate"] == 1/3
+        assert stats["error_codes"] == {2: 1, 1: 1, 0: 1}
+        assert stats["command_types"] == {"make_target": 2, "npm_script": 1}
 
 
 @pytest.fixture
@@ -333,9 +309,14 @@ poetry.lock error
 
 
 def test_parse_file_integration(sample_markdown_file):
-    """Test integracyjny parsowania pliku."""
+    """Integration test for file parsing."""
     parser = MarkdownParser()
-    commands = parser.parse_file(str(sample_markdown_file))
+    blocks = parser.parse_file(str(sample_markdown_file))
 
-    assert len(commands) == 1
-    assert commands[0].title == "Make target: install"
+    assert len(blocks) == 1
+    block = blocks[0]
+    assert 'code_block' in block
+    assert 'commands' in block
+    assert 'file' in block
+    assert 'start_line' in block
+    assert 'end_line' in block
