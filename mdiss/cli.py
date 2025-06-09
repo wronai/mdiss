@@ -455,13 +455,14 @@ def _show_dry_run_preview(commands, client):
 
         # Format error output with proper escaping
         error_section = ""
-        if command.error_output and command.error_output.strip():
+        error_output = command.error_output or ''
+        if error_output.strip():
             error_section = f"""
 **Error Output:**
 ```
-{error_output}
+{error_output.strip()}
 ```
-""".format(error_output=command.error_output.strip())
+"""
 
         # Format solution section if available
         solution_section = ""
