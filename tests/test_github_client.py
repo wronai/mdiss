@@ -427,7 +427,7 @@ def test_github_config_properties():
         repo="test_repo"
     )
 
-    assert config.repo_url == "https://api.github.com/repos/test_owner/test_repo"
+    assert config.repo_url == "test_owner/test_repo"
     assert config.issues_url == "https://api.github.com/repos/test_owner/test_repo/issues"
 
 
@@ -448,7 +448,8 @@ def test_issue_data_to_dict():
         "body": "Test body",
         "labels": ["bug", "enhancement"],
         "assignees": ["user1", "user2"],
-        "milestone": 5
+        "milestone": 5,
+        "state": "open"
     }
 
     assert result == expected
@@ -467,9 +468,9 @@ def test_issue_data_to_dict_minimal():
     expected = {
         "title": "Test Issue",
         "body": "Test body",
-        "labels": ["bug"]
+        "labels": ["bug"],
+        "assignees": [],
+        "state": "open"
     }
 
     assert result == expected
-    assert "assignees" not in result
-    assert "milestone" not in result

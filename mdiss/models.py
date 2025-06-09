@@ -95,6 +95,16 @@ class GitHubConfig(BaseModel):
         False,
         description="If True, only log actions without making actual API calls"
     )
+    
+    @property
+    def repo_url(self) -> str:
+        """Get the repository URL in the format 'owner/repo'."""
+        return f"{self.owner}/{self.repo}"
+        
+    @property
+    def issues_url(self) -> str:
+        """Get the full GitHub API URL for issues."""
+        return f"{self.base_url}/repos/{self.owner}/{self.repo}/issues"
 
 
 class IssueData(BaseModel):
