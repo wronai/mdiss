@@ -2,6 +2,7 @@
 .env
 venv
 .coverage
+poetry.lock
 # Caddy data and config
 /data
 /config

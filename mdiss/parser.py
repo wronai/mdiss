@@ -23,6 +23,58 @@ class MarkdownParser:
             re.MULTILINE
         )
 
+    def _clean_status(self, status: str) -> str:
+        """
+        Clean status string by removing emojis and normalizing.
+        
+        Args:
+            status: Status string to clean
+            
+        Returns:
+            Cleaned status string
+        """
+        if not status:
+            return ""
+            
+        # Remove emojis and extra whitespace
+        status = re.sub(r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\u2600-\u26FF\u2700-\u27BF]', '', status)
+        status = status.strip()
+        
+        # Normalize common status values
+        status_map = {
+            '❌ Failed': 'Failed',
+            '✅ Passed': 'Passed',
+            '⚠️ Warning': 'Warning',
+            '⏱️ Timeout': 'Timeout'
+        }
+        
+        return status_map.get(status, status)
+
+    def _parse_metadata(self, metadata_text: str) -> Dict[str, str]:
+        """
+        Parse metadata from markdown text.
+        
+        Args:
+            metadata_text: Metadata text in markdown format (list items with **key:** value)
+            
+        Returns:
+            Dictionary of metadata key-value pairs
+        """
+        metadata = {}
+        if not metadata_text:
+            return metadata
+            
+        # Match lines with **key:** value format
+        pattern = r'\*\*([^:]+):\*\*\s*([^\n]+)'
+        
+        for match in re.finditer(pattern, metadata_text):
+            key = match.group(1).strip()
+            value = match.group(2).strip()
+            if key and value:
+                metadata[key] = value
+                
+        return metadata
+
     def parse_file(self, file_path: str) -> List[Dict[str, Any]]:
         """
         Parse a markdown file and extract code blocks and commands.
@@ -32,9 +84,16 @@ class MarkdownParser:
             
         Returns:
             List of dictionaries containing parsed commands and metadata
+            
+        Raises:
+            FileNotFoundError: If the specified file does not exist
         """
+        path = Path(file_path)
+        if not path.exists() or not path.is_file():
+            raise FileNotFoundError(f"File not found: {file_path}")
+            
         try:
-            content = Path(file_path).read_text(encoding='utf-8')
+            content = path.read_text(encoding='utf-8')
             return self.parse_content(content, file_path=file_path)
         except Exception as e:
             return [{
