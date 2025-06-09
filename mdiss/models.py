@@ -126,3 +126,23 @@ class IssueData(BaseModel):
         description="State of the issue (open or closed)",
         pattern="^(open|closed)$"
     )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the model to a dictionary for GitHub API compatibility.
+        
+        Returns:
+            Dictionary representation of the issue data
+        """
+        result = {
+            'title': self.title,
+            'body': self.body,
+            'labels': self.labels,
+            'assignees': self.assignees,
+            'state': self.state
+        }
+        
+        # Only include milestone if it's set
+        if self.milestone is not None:
+            result['milestone'] = self.milestone
+            
+        return result
