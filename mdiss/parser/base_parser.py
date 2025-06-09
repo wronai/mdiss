@@ -33,14 +33,14 @@ class BaseMarkdownParser(ABC):
         """
         pass
 
-    def parse_file(self, file_path: str) -> List[CommandData]:
-        """Parse a markdown file and return a list of commands.
+    def parse_file(self, file_path: str) -> List[Dict[str, str]]:
+        """Parse a markdown file and return a list of code blocks with file info.
 
         Args:
             file_path: Path to the markdown file
 
         Returns:
-            List of CommandData objects
+            List of dictionaries containing 'code_block' and 'file' keys
 
         Raises:
             FileNotFoundError: If the file doesn't exist
@@ -49,6 +49,23 @@ class BaseMarkdownParser(ABC):
         path = Path(file_path)
         if not path.exists() or not path.is_file():
             raise FileNotFoundError(f"File not found: {file_path}")
+
+        content = path.read_text(encoding="utf-8")
+
+        # Extract code blocks using a simple regex
+        import re
+
+        code_blocks = re.findall(r"```(?:\w*\n)?(.*?)```", content, re.DOTALL)
+
+        # Clean up the code blocks
+        blocks = []
+        for block in code_blocks:
+            # Remove leading/trailing whitespace and empty lines
+            cleaned = "\n".join(line.rstrip() for line in block.strip().split("\n"))
+            if cleaned:  # Only include non-empty blocks
+                blocks.append({"code_block": cleaned, "file": str(path.absolute())})
+
+        return blocks
 
         try:
             content = path.read_text(encoding="utf-8")

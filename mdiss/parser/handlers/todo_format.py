@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Match, Optional, Pattern, Tuple
 
 from ..exceptions import InvalidCommandError, ParserError
 from ..models import CodeBlock, CommandData, ErrorOutput
-from . import FormatHandler
+from .base_handler import FormatHandler
 
 
 class TodoFormatHandler(FormatHandler):

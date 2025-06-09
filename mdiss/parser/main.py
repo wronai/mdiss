@@ -277,3 +277,58 @@ class MarkdownParser(BaseMarkdownParser):
                         section_name
                     )
                     section.content = content
+
+    def parse_failed_commands(self, file_path: str) -> List[Dict[str, Any]]:
+        """
+        Parse markdown file and return its content as a list of sections.
+        Each section is returned as a dictionary with the title and raw content.
+        
+        Args:
+            file_path: Path to the markdown file
+            
+        Returns:
+            List of dictionaries with 'title' and 'content' keys
+            
+        Raises:
+            FileNotFoundError: If the file doesn't exist
+            ParserError: If there's an error reading the file
+        """
+        path = Path(file_path)
+        if not path.exists() or not path.is_file():
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        try:
+            content = path.read_text(encoding="utf-8").strip()
+            if not content:
+                return []
+                
+            # Split by sections (separated by --- or any markdown header)
+            sections = []
+            current_section = None
+            
+            for line in content.splitlines():
+                line = line.rstrip()
+                
+                # Check for markdown headers (##, ###, etc.)
+                if line.startswith('#'):
+                    if current_section and current_section['content'].strip():
+                        sections.append(current_section)
+                    current_section = {
+                        'title': line.lstrip('#').strip(),
+                        'content': ''
+                    }
+                elif current_section is not None:
+                    current_section['content'] += line + '\n'
+            
+            # Add the last section if it exists
+            if current_section and current_section['content'].strip():
+                sections.append(current_section)
+            
+            # If no sections were found, return the whole content as one section
+            if not sections and content:
+                return [{'title': 'Content', 'content': content}]
+                
+            return sections
+            
+        except Exception as e:
+            raise ParserError(f"Failed to parse markdown file: {str(e)}") from e

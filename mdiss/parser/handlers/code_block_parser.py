@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Match, Optional, Pattern
 
 from ..exceptions import InvalidCommandError, ParserError
 from ..models import CommandData, ErrorOutput
-from . import FormatHandler
+from .base_handler import FormatHandler
 
 
 class CodeBlockHandler(FormatHandler):
