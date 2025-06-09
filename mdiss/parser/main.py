@@ -1,47 +1,38 @@
 """
 Main parser implementation for markdown files.
+
+This module provides the MarkdownParser class which handles parsing of markdown content
+to extract commands, code blocks, and metadata in a structured format.
 """
+
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Match, Optional, Pattern
+from typing import Any, Dict, List, Optional, Union
 
-from .base_parser import BaseMarkdownParser
-from .exceptions import (
-    InvalidCommandError,
-    MarkdownSyntaxError,
-    ParserError,
-    SectionNotFoundError,
-)
-from .models import CodeBlock, CommandData, ErrorOutput, Metadata, Section
+from .exceptions import ParserError
+from .models import CommandData, ErrorOutput, Metadata, Section
+from .parsers import MarkdownParser as NewMarkdownParser
 
 
-class MarkdownParser(BaseMarkdownParser):
+class MarkdownParser(NewMarkdownParser):
     """
     Parser for extracting code blocks and commands from markdown files.
 
-    This parser supports multiple formats:
-    1. Code blocks with shell commands (```bash ... ```)
-    2. Markdown sections with command details (## 1. Command: ...)
+    This is a compatibility layer that provides the expected interface
+    while forwarding to the new implementation.
     """
 
     def __init__(self):
         """Initialize the markdown parser."""
         super().__init__()
-        self.code_block_pattern: Pattern = re.compile(
-            r"```(?:\w+)?\s*\n(.*?)```", re.DOTALL | re.MULTILINE
-        )
-        self.command_pattern: Pattern = re.compile(
-            r"^\s*\$\s*(.+?)(?:\s*#|$)", re.MULTILINE
-        )
-        self.section_header_pattern: Pattern = re.compile(
-            r"^#{1,3}\s+(.+?)(?:\s*\*\*|:)?\s*$", re.IGNORECASE
-        )
-        self.metadata_pattern: Pattern = re.compile(
-            r"^\s*[\*\-]?\s*\*\*(.+?):\*\*\s*(.+?)\s*$"
-        )
+        self.metadata_pattern = re.compile(r"- \*\*(.*?):\*\*\s*(.*)")
+        self.file_path: Optional[str] = None
+        self.commands: List[CommandData] = []
 
     def parse(self, content: str, file_path: Optional[str] = None) -> List[CommandData]:
         """Parse markdown content and extract commands.
+
+        This is a thin wrapper around the new implementation.
 
         Args:
             content: Markdown content to parse
@@ -50,285 +41,209 @@ class MarkdownParser(BaseMarkdownParser):
         Returns:
             List of CommandData objects
         """
-        self.content = content
         self.file_path = file_path or ""
+        self.commands = super().parse(content, self.file_path)
+        return self.commands
 
-        # First try the TODO format parser
-        todo_commands = self._parse_todo_format()
-        if todo_commands:
-            return todo_commands
+    def parse_content(self, content: str) -> List[Dict[str, Any]]:
+        """Parse markdown content and return list of command dictionaries.
 
-        # Fall back to the default parser
-        return self._parse_code_blocks()
+        This is the main entry point used by tests.
 
-    def _parse_todo_format(self) -> List[CommandData]:
-        """Parse the TODO.md format with command sections."""
-        commands: List[CommandData] = []
-        sections = self.content.split("---")
+        Args:
+            content: Markdown content to parse
 
-        for section in sections:
-            section = section.strip()
-            if not section:
-                continue
-
-            # Extract command title from the first line
-            lines = section.split("\n")
-            title_match = re.match(
-                r"^##\s+\d+\.\s+(.+?)(?:\s*\*\*)?$", lines[0].strip()
-            )
-            if not title_match:
-                continue
-
-            title = title_match.group(1).strip()
-            command = self._create_command(title)
-
-            # Process the section content
-            section_content = "\n".join(lines[1:]).strip()
-            self._process_section_content(section_content, command)
-
-            # Validate the command has required fields
-            if command.command:  # Only add if we have a command
-                commands.append(command)
-
-        return commands
-
-    def _parse_code_blocks(self) -> List[CommandData]:
-        """Parse code blocks from markdown content."""
-        commands: List[CommandData] = []
-
-        for match in self.code_block_pattern.finditer(self.content):
-            code_block = match.group(1).strip()
-            if not code_block:
-                continue
-
-            # Create a command for each code block
-            command = self._create_command("Command from code block")
-            command.command = code_block
-
-            # Try to extract command type from code block language
-            language = match.group(0).split("\n", 1)[0].strip("`").lower()
-            if language and language != "bash":
-                command.command_type = language
-
-            commands.append(command)
-
-        return commands
-
-    def _create_command(self, title: str) -> CommandData:
-        """Create a new CommandData instance with default values."""
-        return CommandData(
-            title=title,
-            command="",
-            source=self.file_path or "",
-            command_type="shell",
-            status="Failed",
-            return_code=1,
-            execution_time=0.0,
-            output="",
-            error_output=None,
-            metadata=Metadata(),
-            sections={},
-        )
-
-    def _process_section_content(self, content: str, command: CommandData) -> None:
-        """Process the content of a section and update the command data."""
-        lines = content.split("\n")
-        current_section = None
-        in_code_block = False
-        code_block_content = []
-
-        for line in lines:
-            line = line.rstrip()
-
-            # Handle code blocks
-            if line.strip() in ("```", "~~~"):
-                in_code_block = not in_code_block
-                if not in_code_block and code_block_content and current_section:
-                    # End of code block, save the content
-                    block_content = "\n".join(code_block_content).strip("\n")
-                    if block_content:
-                        code_block = CodeBlock(
-                            content=block_content,
-                            language="",  # TODO: Detect language if possible
-                        )
-
-                        if current_section == "error_output":
-                            command.error_output = ErrorOutput(
-                                content=block_content, is_from_code_block=True
-                            )
-                        else:
-                            section = command.get_section(
-                                current_section
-                            ) or command.add_section(current_section)
-                            section.code_blocks.append(code_block)
-
-                    code_block_content = []
-                continue
-
-            if in_code_block:
-                code_block_content.append(line)
-                continue
-
-            # Check for section headers
-            section_match = self.section_header_pattern.match(line)
-            if section_match:
-                self._finalize_section(command, current_section, code_block_content)
-                code_block_content = []
-
-                section_name = section_match.group(1).lower()
-
-                # Map section name to command field
-                if "command" in section_name:
-                    current_section = "command"
-                elif "output" in section_name and "error" not in section_name:
-                    current_section = "output"
-                elif any(
-                    x in section_name for x in ["error", "stderr", "error output"]
-                ):
-                    current_section = "error_output"
-                elif "suggested" in section_name and "solution" in section_name:
-                    current_section = "suggested_solution"
-                elif "metadata" in section_name:
-                    current_section = "metadata"
-                else:
-                    current_section = None
-                continue
-
-            # Skip empty lines outside of sections
-            if not line.strip() or not current_section:
-                continue
-
-            # Parse key-value pairs for metadata
-            if current_section == "metadata":
-                self._parse_metadata(line, command)
-            else:
-                # For other sections, collect the content
-                self._update_command_field(command, current_section, line)
-
-    def _parse_metadata(self, line: str, command: CommandData) -> None:
-        """Parse metadata line and update command metadata."""
-        match = self.metadata_pattern.match(line)
-        if match:
-            key = match.group(1).strip().lower()
-            value = match.group(2).strip()
-
-            if key == "command":
-                command.command = value.strip("`")
-            elif key == "source":
-                command.source = value
-            elif key == "type":
-                command.command_type = value.lower()
-            elif key == "status":
-                command.status = self._clean_status(value)
-            elif key in ("return code", "return_code"):
-                try:
-                    command.return_code = int(value)
-                except (ValueError, TypeError):
-                    command.return_code = 1
-            elif key in ("execution time", "execution_time"):
-                try:
-                    command.execution_time = float(value.rstrip("s").strip())
-                except (ValueError, TypeError):
-                    pass
-            elif key in ("output", "stdout"):
-                command.output = value
-            elif key in ("error", "error_output", "stderr"):
-                command.error_output = ErrorOutput(content=value)
-            else:
-                command.metadata.data[key] = value
-
-    def _update_command_field(
-        self, command: CommandData, field: str, value: str
-    ) -> None:
-        """Update a command field with the given value."""
-        if field == "command":
-            command.command = value.strip("`")
-        elif field == "output":
-            command.output = value
-        elif field == "error_output":
-            if command.error_output:
-                command.error_output.content += "\n" + value
-            else:
-                command.error_output = ErrorOutput(content=value)
-        elif field == "suggested_solution":
-            # Store suggested solution in metadata
-            command.metadata.data["suggested_solution"] = value
-        else:
-            # For other fields, store in metadata
-            command.metadata.data[field] = value
-
-    def _finalize_section(
-        self,
-        command: CommandData,
-        section_name: Optional[str],
-        code_block_content: List[str],
-    ) -> None:
-        """Finalize the current section by saving any pending code block content."""
-        if code_block_content and section_name:
-            content = "\n".join(code_block_content).strip("\n")
-            if content:
-                if section_name == "error_output":
-                    if command.error_output:
-                        command.error_output.content += "\n" + content
-                    else:
-                        command.error_output = ErrorOutput(content=content)
-                else:
-                    section = command.get_section(section_name) or command.add_section(
-                        section_name
-                    )
-                    section.content = content
-
-    def parse_failed_commands(self, file_path: str) -> List[Dict[str, Any]]:
+        Returns:
+            List of command dictionaries
         """
-        Parse markdown file and return its content as a list of sections.
-        Each section is returned as a dictionary with the title and raw content.
-        
+        self.parse(content)
+        return [self._command_to_dict(cmd) for cmd in self.commands]
+
+    def _parse_metadata_text(self, text: str) -> Dict[str, str]:
+        """Parse metadata text into a dictionary.
+
+        Args:
+            text: Metadata text to parse
+
+        Returns:
+            Dictionary of metadata key-value pairs
+        """
+        metadata = {}
+        for line in text.strip().split("\n"):
+            match = self.metadata_pattern.match(line.strip())
+            if match:
+                key = match.group(1).strip()
+                value = match.group(2).strip()
+                metadata[key] = value
+        return metadata
+
+    @staticmethod
+    def _clean_status(status: str) -> str:
+        """Remove emoji and extra whitespace from status.
+
+        Args:
+            status: Status string to clean
+
+        Returns:
+            Cleaned status string
+        """
+        # Remove emoji and extra whitespace
+        return re.sub(r"[^\w\s]", "", status).strip()
+
+    def parse_file(self, file_path: Union[str, Path]) -> List[Dict[str, Any]]:
+        """Parse a markdown file and return list of command dictionaries.
+
         Args:
             file_path: Path to the markdown file
-            
+
         Returns:
-            List of dictionaries with 'title' and 'content' keys
-            
+            List of command dictionaries
+
         Raises:
             FileNotFoundError: If the file doesn't exist
-            ParserError: If there's an error reading the file
         """
         path = Path(file_path)
         if not path.exists() or not path.is_file():
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        try:
-            content = path.read_text(encoding="utf-8").strip()
-            if not content:
-                return []
-                
-            # Split by sections (separated by --- or any markdown header)
-            sections = []
-            current_section = None
-            
-            for line in content.splitlines():
-                line = line.rstrip()
-                
-                # Check for markdown headers (##, ###, etc.)
-                if line.startswith('#'):
-                    if current_section and current_section['content'].strip():
-                        sections.append(current_section)
-                    current_section = {
-                        'title': line.lstrip('#').strip(),
-                        'content': ''
-                    }
-                elif current_section is not None:
-                    current_section['content'] += line + '\n'
-            
-            # Add the last section if it exists
-            if current_section and current_section['content'].strip():
-                sections.append(current_section)
-            
-            # If no sections were found, return the whole content as one section
-            if not sections and content:
-                return [{'title': 'Content', 'content': content}]
-                
-            return sections
-            
-        except Exception as e:
-            raise ParserError(f"Failed to parse markdown file: {str(e)}") from e
+        content = path.read_text(encoding="utf-8")
+        return self.parse_content(content)
+
+    def _clean_status(self, status: str) -> str:
+        """Remove emoji and extra whitespace from status.
+
+        Args:
+            status: Status string to clean
+
+        Returns:
+            Cleaned status string
+        """
+        # Remove emoji and extra whitespace
+        return re.sub(r"[^\w\s]", "", status).strip()
+
+    def _parse_metadata_text(self, text: str) -> Dict[str, str]:
+        """Parse metadata text into a dictionary.
+
+        Args:
+            text: Metadata text to parse
+
+        Returns:
+            Dictionary of metadata key-value pairs
+        """
+        metadata = {}
+        for line in text.strip().split("\n"):
+            match = self.metadata_pattern.match(line.strip())
+            if match:
+                key = match.group(1).strip()
+                value = match.group(2).strip()
+                metadata[key] = value
+        return metadata
+
+    def _command_to_dict(self, command: CommandData) -> Dict[str, Any]:
+        """Convert a CommandData object to a dictionary.
+
+        Args:
+            command: CommandData object to convert
+
+        Returns:
+            Dictionary representation of the command
+        """
+        return {
+            "command": command.command,
+            "output": command.output,
+            "error_output": command.error_output.content
+            if command.error_output
+            else "",
+            "metadata": command.metadata.data,
+            "sections": [
+                {
+                    "name": section.name,
+                    "content": section.content,
+                    "code_blocks": [
+                        {"content": cb.content, "language": cb.language}
+                        for cb in section.code_blocks
+                    ],
+                }
+                for section in command.sections
+            ],
+        }
+
+    def parse_failed_commands(self, file_path: str) -> List[Dict[str, Any]]:
+        """
+        Parse a markdown file containing failed commands and their details.
+
+        The file should contain sections separated by '---' with key-value pairs
+        and code blocks for commands and error outputs.
+
+        Args:
+            file_path: Path to the markdown file to parse
+
+        Returns:
+            List of dictionaries with command information, where each dictionary
+            contains the parsed key-value pairs from the markdown file.
+
+        Raises:
+            FileNotFoundError: If the file doesn't exist
+            ParserError: If there's an error parsing the file
+        """
+        return super().parse_failed_commands(file_path)
+
+    def get_statistics(self, commands: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate statistics from a list of commands.
+
+        Args:
+            commands: List of command dictionaries to analyze
+
+        Returns:
+            Dictionary containing various statistics about the commands
+        """
+        if not commands:
+            return self._get_empty_statistics()
+
+        stats = {
+            "total_commands": len(commands),
+            "failed_commands": 0,
+            "error_codes": {},
+            "command_types": {},
+        }
+
+        for cmd in commands:
+            # Count failed commands
+            exit_code = cmd.get("exit_code", 0)
+            if exit_code != 0:
+                stats["failed_commands"] += 1
+
+            # Count error codes
+            stats["error_codes"][str(exit_code)] = (
+                stats["error_codes"].get(str(exit_code), 0) + 1
+            )
+
+            # Count command types
+            cmd_type = cmd.get("metadata", {}).get("command_type", "unknown")
+            stats["command_types"][cmd_type] = (
+                stats["command_types"].get(cmd_type, 0) + 1
+            )
+
+        # Calculate success rate
+        stats["success_rate"] = (
+            1.0 - (stats["failed_commands"] / stats["total_commands"])
+            if stats["total_commands"] > 0
+            else 1.0
+        )
+
+        return stats
+
+    @staticmethod
+    def _get_empty_statistics() -> Dict[str, Any]:
+        """Return an empty statistics dictionary.
+
+        Returns:
+            Dictionary with empty/zero statistics
+        """
+        return {
+            "total_commands": 0,
+            "failed_commands": 0,
+            "success_rate": 1.0,
+            "error_codes": {},
+            "command_types": {},
+        }

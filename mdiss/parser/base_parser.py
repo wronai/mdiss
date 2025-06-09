@@ -67,12 +67,6 @@ class BaseMarkdownParser(ABC):
 
         return blocks
 
-        try:
-            content = path.read_text(encoding="utf-8")
-            return self.parse(content, str(path.absolute()))
-        except Exception as e:
-            raise ParserError(f"Failed to parse file {file_path}: {str(e)}") from e
-
     def _clean_status(self, status: str) -> str:
         """Clean and normalize status string.
 

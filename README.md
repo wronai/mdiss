@@ -4,50 +4,255 @@
 [![Python Version](https://img.shields.io/pypi/pyversions/mdiss.svg?style=for-the-badge)](https://pypi.org/project/mdiss/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![Tests](https://img.shields.io/github/actions/workflow/status/wronai/mdiss/ci.yml?branch=main&label=Tests&style=for-the-badge)](https://github.com/wronai/mdiss/actions)
-[![Coverage](https://img.shields.io/codecov/c/github/wronai/mdiss?style=for-the-badge&token=YOUR-TOKEN-HERE)](https://codecov.io/gh/wronai/mdiss)
-[![Documentation Status](https://img.shields.io/readthedocs/mdiss/latest?style=for-the-badge)](https://mdiss.readthedocs.io/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=for-the-badge)](https://github.com/psf/black)
-[![PyPI Downloads](https://img.shields.io/pypi/dm/mdiss?style=for-the-badge)](https://pypistats.org/packages/mdiss)
-[![GitHub last commit](https://img.shields.io/github/last-commit/wronai/mdiss?style=for-the-badge)](https://github.com/wronai/mdiss/commits/main)
+[![Documentation](https://img.shields.io/readthedocs/mdiss/latest?style=for-the-badge)](https://mdiss.readthedocs.io/)
+[![Ollama](https://img.shields.io/badge/Ollama-Enabled-7c3aed?style=for-the-badge)](https://ollama.ai/)
+[![GitLab](https://img.shields.io/badge/GitLab-Integrated-FC6D26?style=for-the-badge&logo=gitlab&logoColor=white)](https://gitlab.com/)
 
-Automatyczne generowanie ticketów GitHub na podstawie plików markdown z błędami poleceń.
+[![PyPI version](https://img.shields.io/pypi/v/mdiss.svg?style=for-the-badge&color=blue)](https://pypi.org/project/mdiss/)
+[![Python Version](https://img.shields.io/pypi/pyversions/mdiss.svg?style=for-the-badge)](https://pypi.org/project/mdiss/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
+[![Tests](https://img.shields.io/github/actions/workflow/status/wronai/mdiss/ci.yml?branch=main&label=Tests&style=for-the-badge)](https://github.com/wronai/mdiss/actions)
+[![Documentation](https://img.shields.io/readthedocs/mdiss/latest?style=for-the-badge)](https://mdiss.readthedocs.io/)
 
-## 🚀 Szybki start
+> Advanced markdown processing and issue management with GitHub/GitLab integration and AI-powered ticket generation.
+
+## 🚀 Features
+
+- **Local LLM Integration** - Generate tickets using local models via Ollama
+- **Dual Platform Support** - Native integration with both GitHub and GitLab
+- **Advanced Markdown Processing** - Parse and manipulate markdown content with ease
+- **AI-Powered Ticket Generation** - Automatically generate well-structured tickets
+- **Comprehensive API** - Programmatic access to all features
+- **Flexible Configuration** - Customize behavior to fit your workflow
+- **Safe Operations** - Dry-run mode to preview changes before applying them
+
+## 📖 About the Project
+
+**mdiss** is a powerful tool for processing markdown files and managing issues across multiple platforms. It provides advanced markdown parsing, seamless integration with GitHub and GitLab, and AI-powered ticket generation for better issue management.
+
+### Key Features:
+
+- **Advanced Markdown Processing** - Parse and manipulate markdown content with ease
+- **Dual Platform Support** - Native integration with both GitHub and GitLab
+- **AI-Powered Ticket Generation** - Automatically generate well-structured tickets using AI
+- **Comprehensive API** - Programmatic access to all features
+- **Flexible Configuration** - Customize behavior to fit your workflow
+- **Safe Operations** - Dry-run mode to preview changes before applying them
+
+## 🤖 Local LLM Integration
+
+mdiss now supports local Large Language Models (LLMs) via Ollama, allowing you to generate tickets without relying on external APIs. This feature uses the Mistral 7B model by default but can be configured to use other models.
+
+### Prerequisites
+
+1. Install [Ollama](https://ollama.ai/) on your system
+2. Pull the desired model (e.g., `ollama pull mistral:7b`)
+
+### Quick Start with Local LLM
 
 ```bash
-# Instalacja
-pip install mdiss
+# Start Ollama server (in a separate terminal)
+make llm-serve
 
-# Konfiguracja tokenu GitHub
-mdiss setup
+# Pull the default model (Mistral 7B)
+make llm-pull
 
-# Analiza pliku markdown
-mdiss analyze paste.txt
-
-# Tworzenie issues na GitHub (dry run)
-mdiss create paste.txt owner repo --dry-run
-
-# Tworzenie rzeczywistych issues
-mdiss create paste.txt owner repo
+# Test the LLM integration
+make llm-test
 ```
 
-## 📋 Funkcje
+### Available Make Commands
 
-- ✅ **Automatyczne parsowanie** - Wyodrębnia nieudane polecenia z plików markdown
-- ✅ **Inteligentna analiza** - Określa priorytet i kategorię błędów  
-- ✅ **Sugestie rozwiązań** - Automatyczne sugerowanie sposobów naprawy
-- ✅ **GitHub Integration** - Bezpośrednie tworzenie issues z odpowiednimi labelami
-- ✅ **Bezpieczny token management** - Automatyczne konfigurowanie uprawnień
-- ✅ **Dry run mode** - Testowanie bez tworzenia rzeczywistych issues
-- ✅ **Export danych** - JSON, CSV, tabele
-- ✅ **Rich CLI** - Kolorowy interfejs wiersza poleceń
+| Command | Description |
+|---------|-------------|
+| `make llm-serve` | Start Ollama server in the background |
+| `make llm-pull` | Download the default Mistral 7B model |
+| `make llm-list` | List available Ollama models |
+| `make llm-test` | Test the LLM integration with sample ticket generation |
 
-## 🛠️ Instalacja
+### Using Custom Models
 
-### Z PyPI
+You can use any model available in Ollama by specifying it when initializing the ticket generator:
+
+```python
+from mdiss.ai.ticket_generator import AITicketGenerator
+
+# Initialize with a custom model
+generator = AITicketGenerator(model="llama2")
+
+# Generate a ticket
+ticket = generator.generate_ticket(
+    title="Fix login issues",
+    description="Users are experiencing problems with the login form"
+)
+```
+
+## 🔧 Prerequisites
+
+- Python 3.9+
+- [Ollama](https://ollama.ai/) installed and running
+- GitLab API token (for GitLab integration)
+- GitHub token (for GitHub integration)
+
+## 🚀 Quick Start
+
+### 🛠 Installation
+
+1. Install the package with AI support:
+   ```bash
+   pip install mdiss[ai] ollama
+   ```
+
+2. Install Ollama and pull the desired model (e.g., Mistral 7B):
+   ```bash
+   curl -fsSL https://ollama.com/install.sh | sh
+   ollama pull mistral:7b
+   ```
+
+3. Start the Ollama server (if not already running):
+   ```bash
+   make llm-serve
+   ```
+
+### 🔌 GitLab Integration
+
+1. Create a GitLab Personal Access Token with `api` scope
+2. Configure your environment:
+   ```bash
+   export GITLAB_TOKEN="your-gitlab-token"
+   export GITLAB_URL="https://gitlab.com"  # or your self-hosted GitLab URL
+   ```
+
+3. Test the integration:
+   ```python
+   from mdiss.integrations.gitlab_integration import GitLabIntegration
+
+   gitlab = GitLabIntegration(token="your-gitlab-token")
+   projects = gitlab.list_projects()
+   print(f"Available projects: {[p.name for p in projects]}")
+   ```
+
+### 🤖 Local LLM Usage
+
+```python
+from mdiss.ai.ticket_generator import AITicketGenerator
+
+# Initialize with default model (mistral:7b)
+generator = AITicketGenerator()
+
+# Generate a ticket
+ticket = generator.generate_ticket(
+    title="Fix login issues",
+    description="Users cannot log in on mobile devices"
+)
+
+print(ticket)
+```
+
+### 📝 Makefile Commands
+
+| Command | Description |
+|---------|-------------|
+| `make llm-serve` | Start Ollama server if not running |
+| `make llm-pull` | Download Mistral 7B model |
+| `make llm-list` | List available Ollama models |
+| `make llm-test` | Test LLM integration |
+
+## 📚 Documentation
+
+For detailed documentation, see:
+
+- [LLM Integration Guide](docs/llm_integration.md)
+- [GitLab Integration Guide](docs/gitlab_integration.md)
+- [API Reference](docs/api.md)
+
+## 🚀 Quick Start
+
+### Installation
+
 ```bash
+# Install the package
 pip install mdiss
+
+# Install with optional dependencies for AI features
+pip install mdiss[ai]
+
+# Or install from source
+git clone https://github.com/wronai/mdiss.git
+cd mdiss
+pip install -e .[dev,ai]
+pip install mdiss[ai] ollama
 ```
+
+### Podstawowe użycie
+
+1. **Skonfiguruj dostęp do GitHub**
+   ```bash
+   mdiss setup
+   ```
+
+2. **Przeanalizuj plik z błędami**
+   ```bash
+   mdiss analyze errors.md
+   ```
+
+3. **Utwórz zgłoszenia (w trybie testowym)**
+   ```bash
+   mdiss create errors.md twój-uzytkownik/twoje-repo --dry-run
+   ```
+
+4. **Gdy wszystko wygląda dobrze, wyślij zgłoszenia**
+   ```bash
+   mdiss create errors.md twój-uzytkownik/twoje-repo
+   ```
+
+## 📚 Documentation
+
+### Local LLM Configuration
+
+1. **Environment Variables**
+   ```bash
+   # Set Ollama base URL (default: http://localhost:11434)
+   export OLLAMA_BASE_URL="http://localhost:11434"
+
+   # Set default model (default: mistral:7b)
+   export DEFAULT_LLM_MODEL="mistral:7b"
+   ```
+
+2. **Using with GitHub/GitLab**
+   ```python
+   from mdiss.ticket_manager import TicketManager
+
+   # Initialize with local LLM
+   manager = TicketManager(
+       markdown_path="todos.md",
+       provider="github",
+       llm_model="mistral:7b",  # Optional: specify model
+       ollama_host="http://localhost:11434"  # Optional: specify Ollama host
+   )
+
+   # Generate and create tickets
+   tickets = manager.extract_tickets()
+   for ticket in tickets:
+       manager.create_ticket(ticket)
+   ```
+
+## 📚 Dokumentacja
+
+Pełna dokumentacja dostępna jest w katalogu [docs/](docs/):
+
+- [Instalacja](docs/installation.md) - szczegółowe instrukcje instalacji
+- [Użycie](docs/usage.md) - pełny przewodnik po funkcjach
+- [API](docs/api.md) - dokumentacja interfejsu programistycznego
+- [Wkład w rozwój](CONTRIBUTING.md) - jak współtworzyć projekt
+
+## 👥 Autorzy
+
+Projekt jest rozwijany przez zespół [wronai](https://github.com/wronai).
+
+## 📄 Licencja
+
+Projekt jest dostępny na licencji [Apache 2.0](LICENSE).
 
 ### Z kodu źródłowego
 ```bash
@@ -317,8 +522,8 @@ komunikaty błędów
 ## Problem Description
 Command `make install` is failing consistently.
 
-**Priority**: HIGH  
-**Category**: dependencies  
+**Priority**: HIGH
+**Category**: dependencies
 **Confidence**: 90%
 
 ### Error Analysis
@@ -331,7 +536,7 @@ Command `make install` is failing consistently.
 
 ### Labels
 - bug
-- high  
+- high
 - dependencies
 - make_target
 ```
@@ -354,7 +559,7 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
-    
+
 jobs:
   create-issues:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}

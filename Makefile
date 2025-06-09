@@ -153,6 +153,30 @@ version-major:  ## Bump major version
 	@echo "$(OK_COLOR)Bumping major version...$(NO_COLOR)"
 	$(POETRY) version major
 
+# LLM and AI
+.PHONY: llm-serve llm-pull llm-list llm-test
+
+llm-serve:	## Start Ollama server in the background if not already running
+	@if ! pgrep -f "ollama serve" > /dev/null; then \
+		echo "$(OK_COLOR)Starting Ollama server...$(NO_COLOR)"; \
+		ollama serve & \
+	else \
+		echo "$(OK_COLOR)Ollama server is already running$(NO_COLOR)"; \
+	fi
+
+llm-pull:	## Pull the default Mistral 7B model
+	@echo "$(OK_COLOR)Pulling Mistral 7B model...$(NO_COLOR)"
+	ollama pull mistral:7b
+
+llm-list:	## List available Ollama models
+	@echo "$(OK_COLOR)Available models:$(NO_COLOR)"
+	ollama list
+
+llm-test:	## Test local LLM integration
+	@echo "$(OK_COLOR)Testing local LLM integration...$(NO_COLOR)"
+	@echo "$(WARN_COLOR)Make sure Ollama server is running (make llm-serve)$(NO_COLOR)"
+	$(POETRY) run python examples/local_llm_ticket_generation.py
+
 # Demo and Examples
 .PHONY: demo demo-create
 
@@ -206,17 +230,24 @@ benchmark:  ## Run performance benchmarks
 # Cleanup
 .PHONY: clean
 
-clean:  ## Clean temporary files
-	@echo "$(OK_COLOR)Cleaning up...$(NO_COLOR)"
-	rm -rf build/
-	rm -rf dist/
-	rm -rf *.egg-info/
-	rm -rf htmlcov/
-	rm -rf .coverage
-	rm -rf .pytest_cache/
-	rm -rf .mypy_cache/
-	find . -type d -name __pycache__ -exec rm -r {} +
-	find . -name "*.pyc" -delete
+clean:  ## Clean build artifacts
+	@echo "$(OK_COLOR)Cleaning build artifacts...$(NO_COLOR)"
+	rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .mypy_cache/ .coverage htmlcov/ site/ .benchmarks/
+	find . -type d -name '__pycache__' -exec rm -rf {} +
+	find . -type f -name '*.pyc' -delete
+	find . -type f -name '*.pyo' -delete
+	find . -type f -name '*~' -delete
+
+# Help section updates
+help: ## Show this help message
+	@echo "\n$(OK_COLOR)Available targets:$(NO_COLOR)"
+	@echo ""
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "$(OK_COLOR)%-25s$(NO_COLOR) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
+	@echo "\n$(OK_COLOR)LLM Commands:$(NO_COLOR)"
+	@echo "  make llm-serve     Start Ollama server"
+	@echo "  make llm-pull      Download Mistral 7B model"
+	@echo "  make llm-list      List available models"
+	@echo "  make llm-test      Test LLM integration"
 
 # Aliases
 .PHONY: t l f b p h

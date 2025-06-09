@@ -269,7 +269,7 @@ error
 - **original_command:** make install
 - **key with spaces:** value with spaces"""
 
-        metadata = self.parser._parse_metadata(metadata_text)
+        metadata = self.parser._parse_metadata_text(metadata_text)
 
         assert metadata["target"] == "install"
         assert metadata["original_command"] == "make install"

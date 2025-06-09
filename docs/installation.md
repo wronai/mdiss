@@ -1,28 +1,59 @@
-# Instalacja i konfiguracja
+# 📥 Instalacja i konfiguracja
 
 ## Wymagania wstępne
 
 - Python 3.8 lub nowszy
 - [Poetry](https://python-poetry.org/) (zalecany do rozwoju)
 - Git
+- Konto GitHub z dostępem do repozytorium, do którego chcesz dodawać zgłoszenia
 
-## Instalacja dla użytkowników
+## Sposoby instalacji
 
-### Z PyPI (zalecane)
+### 1. Instalacja z PyPI (zalecane dla użytkowników)
 
 ```bash
 pip install mdiss
 ```
 
-### Z kodu źródłowego
+### 2. Instalacja z kodu źródłowego (dla programistów)
 
 ```bash
+# Sklonuj repozytorium
 git clone https://github.com/wronai/mdiss.git
 cd mdiss
-pip install .
+
+# Zainstaluj zależności
+make install
 ```
 
-## Konfiguracja środowiska deweloperskiego
+## Konfiguracja środowiska
+
+### Konfiguracja tokenu GitHub
+
+1. Wygeneruj nowy token dostępu w ustawieniach konta GitHub:
+   - Przejdź do [Ustawienia konta GitHub](https://github.com/settings/tokens)
+   - Kliknij "Generate new token (classic)"
+   - Nadaj odpowiednie uprawnienia (minimum `repo`)
+   - Skopiuj wygenerowany token
+
+2. Skonfiguruj narzędzie:
+   ```bash
+   mdiss setup
+   ```
+
+   Wprowadź token, gdy zostaniesz o to poproszony.
+
+## Weryfikacja instalacji
+
+Sprawdź, czy narzędzie zostało poprawnie zainstalowane:
+
+```bash
+mdiss --version
+```
+
+## Rozwój projektu
+
+### Konfiguracja środowiska deweloperskiego
 
 1. Sklonuj repozytorium:
    ```bash
@@ -30,7 +61,7 @@ pip install .
    cd mdiss
    ```
 
-2. Zainstaluj zależności:
+2. Zainstaluj zależności deweloperskie:
    ```bash
    make dev
    ```
@@ -44,11 +75,81 @@ pip install .
 
 ```bash
 # Instalacja i konfiguracja
-make install      # Zainstaluj podstawowe zależności
-make dev          # Zainstaluj zależności deweloperskie
-make install-hooks # Zainstaluj git hooks
+make install           # Zainstaluj podstawowe zależności
+make dev               # Zainstaluj zależności deweloperskie
+make install-hooks     # Zainstaluj git hooks
+make update            # Zaktualizuj zależności
 
-# Testowanie
+# Testowanie i jakość kodu
+make test              # Uruchom testy jednostkowe
+make lint              # Sprawdź jakość kodu
+make format            # Sformatuj kod automatycznie
+make check-format      # Sprawdź formatowanie kodu
+
+# Budowa i publikacja
+make build             # Zbuduj pakiet
+make publish           # Opublikuj nową wersję (wymaga uprawnień)
+
+make clean             # Wyczyść środowisko
+```
+
+## Aktualizacja
+
+### Aktualizacja z PyPI
+
+```bash
+pip install --upgrade mdiss
+```
+
+### Aktualizacja z kodu źródłowego
+
+```bash
+git pull origin main
+make update
+```
+
+## Odinstalowanie
+
+```bash
+pip uninstall mdiss
+```
+
+## Rozwiązywanie problemów
+
+### Błąd braku uprawnień
+
+Jeśli podczas instalacji pojawią się błędy związane z uprawnieniami, spróbuj użyć flagi `--user`:
+
+```bash
+pip install --user mdiss
+```
+
+lub uruchom polecenie z uprawnieniami administratora:
+
+```bash
+sudo pip install mdiss
+```
+
+### Problem z zależnościami
+
+Jeśli występują problemy z zależnościami, spróbuj:
+
+1. Zaktualizować pip:
+   ```bash
+   pip install --upgrade pip
+   ```
+
+2. Zainstalować zależności ręcznie:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## Pomoc i wsparcie
+
+Jeśli napotkasz problemy podczas instalacji:
+
+1. Sprawdź [sekcję Issues](https://github.com/wronai/mdiss/issues) czy problem nie został już zgłoszony
+2. Jeśli nie, [stwórz nowe zgłoszenie](https://github.com/wronai/mdiss/issues/new/choose) z opisem problemu
 make test           # Uruchom testy
 make test-verbose   # Testy z pełnym wyjściem
 make test-coverage  # Testy z pokryciem kodu

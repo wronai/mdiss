@@ -35,23 +35,36 @@ include = [
 
 [tool.poetry.dependencies]
 python = "^3.9"
-requests = "^2.25.0"
-click = "^8.0.0"
-rich = "^13.0.0"
-pydantic = "^2.0.0"
+requests = "^2.31.0"
+click = "^8.1.7"
+rich = "^13.7.0"
+pydantic = "^2.5.0"
 domd = "^2.1.4"
 python-dotenv = "^1.0.0"
+marko = "^2.1.0"
+python-gitlab = "^4.0.0"
+pygithub = "^2.1.1"
+ollama = "^0.1.5"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.0.0"
-pytest-cov = "^4.0.0"
-pytest-mock = "^3.10.0"
-black = "^23.0.0"
-isort = "^5.12.0"
-flake8 = "^6.0.0"
-mypy = "^1.0.0"
-pre-commit = "^3.0.0"
-responses = "^0.23.0"
+pytest = "^8.0.0"
+pytest-cov = "^4.1.0"
+pytest-mock = "^3.12.0"
+black = "^24.1.0"
+isort = "^5.13.0"
+flake8 = "^7.0.0"
+mypy = "^1.8.0"
+pre-commit = "^3.6.0"
+responses = "^0.24.1"
+types-requests = "^2.31.0"
+types-python-dateutil = "^2.8.19"
+types-pyyaml = "^6.0.12"
+
+[tool.poetry.group.ai]
+optional = true
+
+[tool.poetry.group.ai.dependencies]
+ollama = "^0.1.5"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.4.0"

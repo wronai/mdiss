@@ -491,12 +491,12 @@ def _show_dry_run_preview(commands, client):
         # Generate issue title and header
         issue_title = f"Fix: {command.title}"
 
-        # Format command section with syntax highlighting
-        command_section = f"""## 📋 Command
-```bash
-{command.command.strip()}
-```
-"""
+        # Format command section with syntax highlighting, using formatted_command from metadata if available
+        formatted_cmd = command.metadata.get("formatted_command")
+        if formatted_cmd and formatted_cmd.strip():
+            command_section = f"## 📋 Command\n{formatted_cmd.strip()}\n"
+        else:
+            command_section = f"## 📋 Command\n```bash\n{command.command.strip()}\n```\n"
 
         # Format standard output if available
         output_section = ""
@@ -507,16 +507,16 @@ def _show_dry_run_preview(commands, client):
 ```
 """
 
-        # Format error output with proper escaping
-        error_section = ""
-        error_output = command.error_output or ""
-        if error_output.strip():
-            error_section = f"""
-**Error Output:**
-```
-{error_output.strip()}
-```
-"""
+        # Format error output using formatted_error from metadata if available
+        formatted_error = command.metadata.get("formatted_error")
+        if formatted_error and formatted_error.strip():
+            error_section = f"**Error Output:**\n{formatted_error.strip()}\n"
+        else:
+            error_output = command.error_output or ""
+            if error_output.strip():
+                error_section = f"**Error Output:**\n```\n{error_output.strip()}\n```\n"
+            else:
+                error_section = ""
 
         # Format solution section if available
         solution_section = ""
