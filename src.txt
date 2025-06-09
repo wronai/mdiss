@@ -1,0 +1,27 @@
+├── pyproject.toml              # Poetry configuration
+├── README.md                   # Dokumentacja
+├── LICENSE                     # Licencja Apache-2.0
+├── .gitignore                  # Git ignore
+├── mdiss/                      # Główny pakiet
+│   ├── __init__.py            # Init pakietu
+│   ├── cli.py                 # Command line interface  
+│   ├── parser.py              # Markdown parser
+│   ├── github_client.py       # GitHub API client
+│   ├── models.py              # Data models
+│   └── analyzer.py            # Error analyzer
+├── tests/                      # Testy
+│   ├── __init__.py
+│   ├── test_parser.py         # Testy parsera
+│   ├── test_github_client.py  # Testy GitHub client
+│   ├── test_analyzer.py       # Testy analizatora
+│   ├── test_cli.py            # Testy CLI
+│   └── fixtures/              # Test fixtures
+│       ├── sample_markdown.md
+│       └── sample_responses.json
+├── docs/                       # Dokumentacja
+│   ├── index.md
+│   ├── usage.md
+│   └── api.md
+└── examples/                   # Przykłady użycia
+    ├── basic_usage.py
+    └── advanced_usage.py
