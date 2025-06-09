@@ -75,6 +75,79 @@ class ErrorAnalyzer:
             },
         ]
 
+    def _analyze_root_cause(self, command: 'FailedCommand') -> str:
+        """Analizuje główną przyczynę błędu."""
+        error_text = (command.error_output or "").lower()
+        
+        if "poetry.lock" in error_text:
+            return "Plik poetry.lock jest niezsynchronizowany z pyproject.toml"
+            
+        if command.is_timeout:
+            return "Przekroczono limit czasu wykonania polecenia"
+            
+        if "not found" in error_text:
+            return "Nie znaleziono wymaganego pliku lub katalogu"
+            
+        if "permission denied" in error_text:
+            return "Brak uprawnień do wykonania operacji"
+            
+        if "syntax error" in error_text:
+            return "Błąd składni w pliku konfiguracyjnym lub skrypcie"
+            
+        if command.return_code == 127:  # Command not found
+            return "Polecenie nie zostało znalezione w systemie"
+            
+        if command.return_code == 126:  # Permission denied
+            return "Brak uprawnień do wykonania pliku"
+            
+        return "Nieznana przyczyna błędu"
+        
+    def _suggest_solution(self, command: 'FailedCommand', category: 'Category') -> str:
+        """Sugeruje rozwiązanie na podstawie kategorii błędu."""
+        error_text = (command.error_output or "").lower()
+        
+        if category == Category.DEPENDENCY or "poetry.lock" in error_text:
+            return "Uruchom `poetry lock` i spróbuj ponownie"
+            
+        if category == Category.TIMEOUT or command.is_timeout:
+            return "Zwiększ limit czasu wykonania lub zoptymalizuj polecenie"
+            
+        if "not found" in error_text:
+            return "Sprawdź poprawność ścieżki i upewnij się, że plik istnieje"
+            
+        if "permission denied" in error_text:
+            return "Sprawdź uprawnienia do plików i katalogów"
+            
+        if command.return_code == 127:  # Command not found
+            return "Sprawdź, czy program jest zainstalowany i dostępny w ścieżce systemowej"
+            
+        if command.return_code == 126:  # Permission denied
+            return "Nadaj odpowiednie uprawnienia do pliku (chmod +x)"
+            
+        return "Sprawdź logi błędów w celu uzyskania więcej informacji"
+        
+    def _calculate_confidence(self, command: 'FailedCommand', category: 'Category') -> float:
+        """Oblicza poziom pewności analizy (0.0 - 1.0)."""
+        confidence = 0.7  # Bazowy poziom pewności
+        
+        # Zwiększ pewność, jeśli mamy jednoznaczne oznaki błędu
+        if command.is_timeout or "timeout" in (command.error_output or "").lower():
+            confidence = 0.9
+        elif "not found" in (command.error_output or "").lower():
+            confidence = 0.85
+        elif "permission denied" in (command.error_output or "").lower():
+            confidence = 0.8
+            
+        # Zwiększ pewność, jeśli mamy konkretny kod błędu
+        if command.return_code in [126, 127]:  # Permission denied, Command not found
+            confidence = max(confidence, 0.9)
+            
+        # Zmniejsz pewność, jeśli nie ma szczegółowych informacji o błędzie
+        if not command.error_output and command.return_code == 1:
+            confidence = 0.5
+            
+        return min(max(confidence, 0.0), 1.0)  # Zapewnij wartość w zakresie 0.0-1.0
+
     def _build_category_rules(self) -> List[Dict]:
         """Buduje reguły kategoryzacji błędów."""
         return [
@@ -88,7 +161,7 @@ class ErrorAnalyzer:
             },
             {
                 "patterns": [r"permission denied", r"cannot.*--user", r"not visible in.*virtualenv"],
-                "category": Category.PERMISSIONS,
+                "category": Category.PERMISSION,
             },
             {
                 "patterns": [r"timeout", r"timed out", r"killed"],
@@ -143,7 +216,7 @@ class ErrorAnalyzer:
 3. **Sprawdź .gitignore:**
    - Możliwe że plik jest ignorowany przez git
 """,
-            Category.PERMISSIONS: """
+            Category.PERMISSION: """
 **Rozwiązanie problemu z uprawnieniami:**
 
 1. **W środowisku wirtualnym:**

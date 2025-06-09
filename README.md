@@ -56,14 +56,137 @@ cd mdiss
 poetry install
 ```
 
-### Deweloperska
+### Rozwój i wkład
+
+#### Konfiguracja środowiska deweloperskiego
+
 ```bash
+# Sklonuj repozytorium
 git clone https://github.com/wronai/mdiss.git
 cd mdiss
+
+# Zainstaluj zależności deweloperskie
 make dev
+
+# Zainstaluj pre-commit hooks
+make install-hooks
 ```
 
-## 📖 Użycie
+#### Dostępne polecenia Makefile
+
+```bash
+# Instalacja i konfiguracja
+make install      # Zainstaluj podstawowe zależności
+make dev          # Zainstaluj zależności deweloperskie
+make install-hooks # Zainstaluj git hooks
+
+# Testowanie
+make test           # Uruchom testy
+make test-verbose   # Testy z pełnym wyjściem
+make test-coverage  # Testy z pokryciem kodu
+make test-unit      # Tylko testy jednostkowe
+make test-integration # Tylko testy integracyjne
+
+# Jakość kodu
+make lint     # Sprawdź jakość kodu
+make format   # Sformatuj kod automatycznie
+make security # Sprawdź bezpieczeństwo
+make qa       # Uruchom pełne sprawdzenie jakości (lint + test)
+
+# Dokumentacja
+make docs          # Zbuduj dokumentację
+make docs-serve    # Uruchom lokalny serwer z dokumentacją
+make docs-deploy   # Wdróż dokumentację na GitHub Pages
+
+# Budowanie i publikacja
+make build     # Zbuduj pakiet
+make publish   # Opublikuj na PyPI
+make clean     # Wyczyść pliki budowania
+
+# Wersjonowanie
+make version-patch  # Zwiększ wersję patch (0.0.X)
+make version-minor  # Zwiększ wersję minor (0.X.0)
+make version-major  # Zwiększ wersję major (X.0.0)
+
+# Demo
+make demo          # Uruchom demo z przykładowym plikiem
+make demo-create   # Demo tworzenia issues (dry run)
+```
+
+#### Workflow deweloperski
+
+1. Zainstaluj zależności:
+   ```bash
+   make dev
+   make install-hooks
+   ```
+
+2. Pracuj nad nową funkcjonalnością w osobnym branchu:
+   ```bash
+   git checkout -b feature/nazwa-funkcjonalnosci
+   ```
+
+3. Przed commitem uruchom testy i sprawdzenia jakości:
+   ```bash
+   make qa
+   ```
+   Lub ręcznie:
+   ```bash
+   make format
+   make lint
+   make test
+   ```
+
+4. Zatwierdź zmiany i wyślij do repozytorium
+
+5. Stwórz Pull Request na GitHubie
+
+6. Po zaakceptowaniu PR, zaktualizuj wersję i opublikuj zmiany:
+   ```bash
+   make version-patch  # lub version-minor/version-major
+   make publish
+   make docs-deploy
+   ```
+
+## 🚀 Szybki start
+
+### Analiza pliku markdown
+
+```bash
+# Analiza pliku
+mdiss analyze TODO.md
+
+# Zapis wyników do pliku JSON
+mdiss analyze TODO.md --output wyniki.json
+
+# Analiza z dodatkowymi informacjami debugowymi
+mdiss analyze TODO.md --verbose
+```
+
+### Tworzenie zgłoszeń na GitHubie
+
+```bash
+# Podgląd zgłoszeń (bez tworzenia)
+mdiss create TODO.md wronai mdiss --dry-run
+
+# Rzeczywiste utworzenie zgłoszeń
+mdiss create plik.md wronai mdiss
+
+# Z określonymi przypisaniami i etykietami
+mdiss create plik.md wronai mdiss --assignees "user1,user2" --labels "bug,high"
+```
+
+### Zarządzanie konfiguracją
+
+```bash
+# Konfiguracja tokenu GitHub
+mdiss setup
+
+# Wyświetl aktualną konfigurację
+mdiss config show
+```
+
+## 📖 Szczegółowe użycie
 
 ### 1. Konfiguracja
 
@@ -91,13 +214,13 @@ mdiss export paste.txt --format csv --output data.csv
 
 ```bash
 # Dry run (tylko podgląd)
-mdiss create paste.txt owner repo --dry-run
+mdiss create TODO.md wronai mdiss --dry-run
 
 # Tworzenie z tokenem z pliku
-mdiss create paste.txt owner repo --token-file .mdiss_token
+mdiss create paste.txt wronai mdiss --token-file .mdiss_token
 
 # Z dodatkowymi opcjami
-mdiss create paste.txt owner repo \
+mdiss create paste.txt wronai mdiss \
     --assignees "user1,user2" \
     --milestone 5 \
     --skip-existing
@@ -107,7 +230,7 @@ mdiss create paste.txt owner repo \
 
 ```bash
 # Lista issues w repozytorium
-mdiss list-issues owner repo
+mdiss list-issues wronai mdiss
 
 # Z filtrami
 mdiss list-issues owner repo --state closed --labels "bug,high"
@@ -119,7 +242,6 @@ mdiss automatycznie kategoryzuje błędy i określa priorytety:
 
 ### Kategorie błędów
 
-```
 | Kategoria | Opis | Przykład |
 |-----------|------|----------|
 | `dependencies` | Problemy z zależnościami | Poetry lock file issues |
@@ -128,7 +250,6 @@ mdiss automatycznie kategoryzuje błędy i określa priorytety:
 | `timeout` | Przekroczenie czasu | Command timed out |
 | `syntax` | Błędy składni | YAML parsing errors |
 | `configuration` | Problemy konfiguracji | Invalid config files |
-```
 
 ### Priorytety
 - **CRITICAL** - Segmentation faults, krytyczne błędy systemu

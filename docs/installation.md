@@ -1,104 +1,142 @@
-# Installation Guide
+# Instalacja i konfiguracja
 
-## Requirements
+## Wymagania wstępne
 
-- Python 3.8 or higher
-- pip or Poetry
-- Git (for development)
+- Python 3.8 lub nowszy
+- [Poetry](https://python-poetry.org/) (zalecany do rozwoju)
+- Git
 
-## Installation Methods
+## Instalacja dla użytkowników
 
-### 1. From PyPI (Recommended)
+### Z PyPI (zalecane)
 
 ```bash
 pip install mdiss
 ```
 
-### 2. From Source
+### Z kodu źródłowego
 
 ```bash
 git clone https://github.com/wronai/mdiss.git
 cd mdiss
-pip install -e .
+pip install .
 ```
 
-### 3. Using Poetry
+## Konfiguracja środowiska deweloperskiego
+
+1. Sklonuj repozytorium:
+   ```bash
+   git clone https://github.com/wronai/mdiss.git
+   cd mdiss
+   ```
+
+2. Zainstaluj zależności:
+   ```bash
+   make dev
+   ```
+
+3. Zainstaluj pre-commit hooks:
+   ```bash
+   make install-hooks
+   ```
+
+### Dostępne polecenia Makefile
 
 ```bash
-git clone https://github.com/wronai/mdiss.git
-cd mdiss
-poetry install
-poetry shell
+# Instalacja i konfiguracja
+make install      # Zainstaluj podstawowe zależności
+make dev          # Zainstaluj zależności deweloperskie
+make install-hooks # Zainstaluj git hooks
+
+# Testowanie
+make test           # Uruchom testy
+make test-verbose   # Testy z pełnym wyjściem
+make test-coverage  # Testy z pokryciem kodu
+make test-unit      # Tylko testy jednostkowe
+make test-integration # Tylko testy integracyjne
+
+# Jakość kodu
+make lint     # Sprawdź jakość kodu
+make format   # Sformatuj kod automatycznie
+make security # Sprawdź bezpieczeństwo
+make qa       # Uruchom pełne sprawdzenie jakości (lint + test)
+
+# Dokumentacja
+make docs          # Zbuduj dokumentację
+make docs-serve    # Uruchom lokalny serwer z dokumentacją
+make docs-deploy   # Wdróż dokumentację na GitHub Pages
+
+# Budowanie i publikacja
+make build     # Zbuduj pakiet
+make publish   # Opublikuj na PyPI
+make clean     # Wyczyść pliki budowania
+
+# Wersjonowanie
+make version-patch  # Zwiększ wersję patch (0.0.X)
+make version-minor  # Zwiększ wersję minor (0.X.0)
+make version-major  # Zwiększ wersję major (X.0.0)
 ```
 
-### 4. Development Installation
+## Weryfikacja instalacji
 
-```bash
-git clone https://github.com/wronai/mdiss.git
-cd mdiss
-make dev
-```
-
-## Verification
-
-Verify the installation:
+Sprawdź, czy instalacja się powiodła:
 
 ```bash
 mdiss --version
 ```
 
-Expected output:
+Oczekiwane wyjście:
 ```
-mdiss, version 1.0.60
+mdiss, wersja 1.0.60
 ```
 
-## GitHub Token Setup
+## Konfiguracja tokenu GitHub
 
-mdiss requires a GitHub token to create issues. The setup command will guide you through the process:
+mdiss wymaga tokenu GitHub do tworzenia zgłoszeń. Użyj polecenia konfiguracyjnego:
 
 ```bash
 mdiss setup
 ```
 
-This will:
-1. Open GitHub token generation page
-2. Pre-select required permissions (`repo`, `write:issues`)
-3. Guide you through token creation
-4. Optionally save the token locally
+To polecenie:
+1. Otworzy stronę generowania tokenu GitHub
+2. Zaznaczy wymagane uprawnienia (`repo`, `write:issues`)
+3. Poprowadzi przez proces tworzenia tokenu
+4. Opcjonalnie zapisze token lokalnie
 
-### Manual Token Creation
+### Ręczne tworzenie tokenu
 
-1. Go to [GitHub Settings > Personal Access Tokens](https://github.com/settings/tokens)
-2. Click "Generate new token"
-3. Select scopes:
-   - `repo` - Full control of private repositories
-   - `write:issues` - Write access to issues
-4. Copy the generated token
-5. Save it securely
+1. Przejdź do [Ustawienia GitHub > Tokeny dostępu osobistego](https://github.com/settings/tokens)
+2. Kliknij "Generate new token"
+3. Wybierz uprawnienia:
+   - `repo` - Pełna kontrola nad prywatnymi repozytoriami
+   - `write:issues` - Uprawnienia do zapisu zgłoszeń
+4. Skopiuj wygenerowany token
+5. Zapisz go w bezpiecznym miejscu
 
-### Token Storage Options
+### Opcje przechowywania tokenu
 
-#### Option 1: File Storage (Recommended)
+#### Opcja 1: Plik (zalecane)
 ```bash
-echo "your_token_here" > .mdiss_token
+echo "twój_token_tutaj" > .mdiss_token
 echo ".mdiss_token" >> .gitignore
 ```
 
-#### Option 2: Environment Variable
+#### Opcja 2: Zmienna środowiskowa
 ```bash
-export GITHUB_TOKEN="your_token_here"
+export GITHUB_TOKEN="twój_token_tutaj"
 ```
 
-#### Option 3: Command Line Parameter
+#### Opcja 3: Parametr wiersza poleceń
 ```bash
-mdiss create file.md owner repo --token your_token_here
+mdiss create plik.md właściciel repozytorium --token twój_token_tutaj
 ```
 
-## Configuration
+## Konfiguracja
 
-### Global Configuration
+### Konfiguracja globalna
 
-Create a global config file at `~/.mdiss/config.toml`:
+Stwórz plik konfiguracyjny w `~/.mdiss/config.toml`:
 
 ```toml
 [github]

@@ -24,6 +24,8 @@ class Category(str, Enum):
     TIMEOUT = "timeout"
     RESOURCE = "resource"
     BUILD_FAILURE = "build_failure"
+    MISSING_FILES = "missing_files"
+    CONFIGURATION = "configuration"
     UNKNOWN = "unknown"
 
 
@@ -53,6 +55,19 @@ class FailedCommand(BaseModel):
     def is_timeout(self) -> bool:
         """Check if the command failed due to a timeout."""
         return self.return_code == -1 and "timeout" in self.status.lower()
+        
+    @property
+    def is_critical(self) -> bool:
+        """Check if the command failed with a critical system error."""
+        critical_indicators = [
+            "segmentation fault",
+            "core dumped",
+            "critical error",
+            "fatal error",
+            "system error"
+        ]
+        error_output = (self.error_output or "").lower()
+        return any(indicator in error_output for indicator in critical_indicators)
 
 
 class AnalysisResult(BaseModel):

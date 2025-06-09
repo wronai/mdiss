@@ -2,13 +2,15 @@
 Command Line Interface dla mdiss.
 """
 
+import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 import click
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from dotenv import load_dotenv
 
 from . import __version__
 from .parser import MarkdownParser
@@ -201,43 +203,86 @@ def list_issues(
         sys.exit(1)
 
 
+def _load_env() -> None:
+    """Load environment variables from .env file if it exists."""
+    env_path = Path.cwd() / '.env'
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
+
+
 def _get_token(token: Optional[str], token_file: Optional[Path]) -> Optional[str]:
-    """Pobiera token z argumentu lub pliku."""
+    """Get GitHub token from multiple sources in order of priority:
+    1. Direct token parameter
+    2. Token file
+    3. GITHUB_TOKEN environment variable
+    4. .env file with GITHUB_TOKEN
+    """
+    # Check direct token parameter first
     if token:
         return token
 
+    # Check token file
     if token_file and token_file.exists():
         return token_file.read_text().strip()
 
-    return None
+    # Load environment from .env file if it exists
+    _load_env()
+
+    # Check environment variables
+    return os.environ.get('GITHUB_TOKEN')
 
 
 def _show_dry_run_preview(commands, client):
     """Pokazuje podgląd w trybie dry run."""
+    console.print("\n🧪 [yellow]DRY RUN MODE[/yellow] - Podgląd issues:")
+    
+    from rich.table import Table
     from .analyzer import ErrorAnalyzer
+    from .models import FailedCommand
+    
     analyzer = ErrorAnalyzer()
-
-    table = Table(title="Podgląd Issues")
+    
+    table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Nr", style="cyan", width=4)
     table.add_column("Tytuł", style="white")
+    table.add_column("Komenda", style="magenta")
     table.add_column("Priorytet", style="yellow")
     table.add_column("Kategoria", style="green")
-    table.add_column("Kod błędu", style="red")
 
-    for i, command in enumerate(commands[:10], 1):  # Pokażemy pierwsze 10
+    for i, cmd_data in enumerate(commands[:10], 1):  # Pokażemy pierwsze 10
+        # Create a FailedCommand object from the command data
+        if isinstance(cmd_data, dict):
+            command = FailedCommand(
+                title=cmd_data.get('command', 'Unknown Command'),
+                command=cmd_data.get('command', ''),
+                source=cmd_data.get('file', 'unknown'),
+                command_type=cmd_data.get('command_type', 'shell'),
+                status='Failed',
+                return_code=cmd_data.get('return_code', 1),
+                execution_time=0.0,
+                output='',
+                error_output=cmd_data.get('error_output', ''),
+                metadata=cmd_data.get('metadata', {})
+            )
+        else:
+            command = cmd_data
+            
         analysis = analyzer.analyze(command)
-        title = client._create_title(command)
-
+        title = cmd_data.get('command', 'Unknown Command') if isinstance(cmd_data, dict) else command.title
+        
         table.add_row(
             str(i),
             title[:50] + "..." if len(title) > 50 else title,
+            command.command[:30] + "..." if len(command.command) > 30 else command.command,
             analysis.priority.value.upper(),
-            analysis.category.value,
-            str(command.return_code)
+            analysis.category.value
         )
 
     console.print(table)
 
+    if len(commands) > 10:
+        console.print(f"\nℹ️  Pokazano 10 z {len(commands)} poleceń. Reszta została pominięta.")
+    console.print("\nℹ️  [yellow]To jest podgląd. Żadne dane nie zostały wysłane na GitHub.[/yellow]")
     if len(commands) > 10:
         console.print(f"... i {len(commands) - 10} więcej")
 
@@ -319,22 +364,46 @@ def _show_issues_table(issues):
 def setup():
     """Interaktywna konfiguracja mdiss."""
     console.print("🛠️  [bold blue]Konfiguracja mdiss[/bold blue]")
-    console.print("=" * 40)
+    console.print("=" * 60)
 
     # Konfiguracja tokenu
     token = GitHubClient.setup_token()
 
-    # Zapisanie tokenu
-    save_token = click.confirm("Czy zapisać token do pliku .mdiss_token?", default=True)
-    if save_token:
-        token_file = Path(".mdiss_token")
-        token_file.write_text(token)
-        console.print(f"💾 Token zapisany do: {token_file.absolute()}")
-        console.print("⚠️  [yellow]Dodaj .mdiss_token do .gitignore![/yellow]")
+    # Zapisanie tokenu do .env
+    env_file = Path(".env")
+    if not env_file.exists():
+        env_file.write_text(f"GITHUB_TOKEN={token}\n")
+        console.print(f"💾 Utworzono plik .env z tokenem w: {env_file.absolute()}")
+        
+        # Dodaj .env do .gitignore jeśli nie istnieje
+        gitignore = Path(".gitignore")
+        if gitignore.exists():
+            gitignore_content = gitignore.read_text()
+            if ".env" not in gitignore_content:
+                with gitignore.open("a") as f:
+                    f.write("\n# Local environment variables\n.env\n")
+                console.print("✅ Dodano .env do .gitignore")
+        else:
+            gitignore.write_text("# Local environment variables\n.env\n")
+            console.print("✅ Utworzono plik .gitignore z wpisem .env")
+    else:
+        # Aktualizacja istniejącego .env
+        env_content = env_file.read_text()
+        if "GITHUB_TOKEN" in env_content:
+            # Zastąp istniejący token
+            import re
+            env_content = re.sub(r'GITHUB_TOKEN=.*', f'GITHUB_TOKEN={token}', env_content)
+            env_file.write_text(env_content)
+            console.print(f"🔄 Zaktualizowano istniejący token w pliku .env")
+        else:
+            # Dodaj nowy token
+            with env_file.open("a") as f:
+                f.write(f"\nGITHUB_TOKEN={token}\n")
+            console.print(f"✅ Dodano token do istniejącego pliku .env")
 
     console.print("\n✅ [green]Konfiguracja zakończona![/green]")
     console.print("\nPrzykład użycia:")
-    console.print("  mdiss create paste.txt owner repo --token-file .mdiss_token")
+    console.print("  mdiss list-issues wronai mdiss")
 
 
 @cli.command()

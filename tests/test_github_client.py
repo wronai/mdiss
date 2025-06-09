@@ -36,19 +36,19 @@ class TestGitHubClient:
         assert self.client.session.headers["User-Agent"] == "mdiss/1.0.60"
 
     @patch('webbrowser.open')
-    @patch('builtins.input', return_value='test_token_123')
-    def test_setup_token(self, mock_input, mock_browser):
+    @patch('getpass.getpass', return_value='test_token_123')
+    def test_setup_token(self, mock_getpass, mock_browser):
         """Test konfiguracji tokenu."""
         token = GitHubClient.setup_token()
 
         assert token == 'test_token_123'
-        mock_browser.assert_called_once()
-        mock_input.assert_called_once()
+        mock_browser.assert_called_once_with("https://github.com/settings/tokens/new")
+        mock_getpass.assert_called_once()
 
-    @patch('builtins.input', return_value='')
-    def test_setup_token_empty_raises_error(self, mock_input):
+    @patch('getpass.getpass', return_value='')
+    def test_setup_token_empty_raises_error(self, mock_getpass):
         """Test że pusty token wywołuje błąd."""
-        with pytest.raises(ValueError, match="Token nie może być pusty"):
+        with pytest.raises(ValueError, match="Token cannot be empty"):
             GitHubClient.setup_token()
 
     def test_set_config(self):
@@ -97,11 +97,11 @@ class TestGitHubClient:
     @responses.activate
     def test_create_issue_success(self):
         """Test pomyślnego tworzenia issue."""
-        issue_data = IssueData(
-            title="Test issue",
-            body="Test body",
-            labels=["bug", "test"]
-        )
+        issue_data = {
+            "title": "Test issue",
+            "body": "Test body",
+            "labels": ["bug", "test"]
+        }
 
         responses.add(
             responses.POST,
@@ -115,7 +115,7 @@ class TestGitHubClient:
             status=201
         )
 
-        result = self.client.create_issue(issue_data)
+        result = self.client.create_issue(issue=issue_data)
 
         assert result["id"] == 123
         assert result["number"] == 1
@@ -141,12 +141,16 @@ class TestGitHubClient:
             self.client.create_issue(issue_data)
 
     def test_create_issue_without_config(self):
-        """Test tworzenia issue bez konfiguracji."""
+        """Test creating an issue without configuration."""
         client = GitHubClient()
-        issue_data = IssueData(title="Test", body="Body", labels=[])
+        issue_data = {
+            "title": "Test",
+            "body": "Body",
+            "labels": []
+        }
 
-        with pytest.raises(ValueError, match="Brak konfiguracji GitHub"):
-            client.create_issue(issue_data)
+        with pytest.raises(ValueError, match="Owner and repo must be provided or set in config"):
+            client.create_issue(issue=issue_data)
 
     def test_create_issue_from_command(self):
         """Test tworzenia issue z polecenia."""

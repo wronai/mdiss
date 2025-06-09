@@ -8,23 +8,63 @@
 
 **Automatyczne generowanie ticketów GitHub na podstawie plików markdown z błędami poleceń.**
 
-## 🚀 Quick Start
+## 🚀 Szybki start
+
+### Instalacja i podstawowe użycie
 
 ```bash
-# Instalacja
+# Instalacja z PyPI
 pip install mdiss
 
-# Konfiguracja
-mdiss setup
+# Aktualizacja do najnowszej wersji
+pip install --upgrade mdiss
 
-# Analiza pliku
-mdiss analyze failures.md
+# Sprawdź wersję
+mdiss --version
+```
 
-# Tworzenie issues (dry run)
-mdiss create failures.md owner repo --dry-run
+### Rozwój projektu
 
-# Tworzenie rzeczywistych issues
-mdiss create failures.md owner repo
+```bash
+# Sklonuj repozytorium
+git clone https://github.com/wronai/mdiss.git
+cd mdiss
+
+# Instalacja zależności deweloperskich
+make dev
+
+# Uruchom testy
+make test
+
+# Uruchom demo
+make demo
+```
+
+### Dostępne polecenia Makefile
+
+```bash
+# Instalacja i konfiguracja
+make install      # Zainstaluj zależności
+make dev          # Zainstaluj zależności deweloperskie
+make install-hooks # Zainstaluj git hooks
+
+# Testowanie
+make test           # Uruchom testy
+make test-coverage  # Testy z pokryciem kodu
+make test-unit      # Tylko testy jednostkowe
+
+# Jakość kodu
+make lint     # Sprawdź jakość kodu
+make format   # Sformatuj kod
+make qa       # Uruchom pełne sprawdzenie jakości
+
+# Dokumentacja
+make docs          # Zbuduj dokumentację
+make docs-serve    # Uruchom lokalny serwer
+
+# Publikacja
+make build     # Zbuduj pakiet
+make publish   # Opublikuj na PyPI
 ```
 
 ## ✨ Funkcje
@@ -38,17 +78,67 @@ mdiss create failures.md owner repo
 - **📊 Export danych** - JSON, CSV, tabele
 - **🎨 Rich CLI** - Kolorowy interfejs wiersza poleceń
 
+## 🔄 Workflow deweloperski
+
+### Rozpoczęcie pracy
+
+1. Sklonuj repozytorium i zainstaluj zależności:
+   ```bash
+   git clone https://github.com/wronai/mdiss.git
+   cd mdiss
+   make dev
+   make install-hooks
+   ```
+
+2. Stwórz nowy branch dla funkcjonalności:
+   ```bash
+   git checkout -b feature/nazwa-funkcjonalnosci
+   ```
+
+3. Wprowadź zmiany w kodzie
+
+### Przed commitem
+
+Zawsze uruchom przed commitem:
+```bash
+make qa  # równoważne z: make format lint test
+```
+
+### Publikacja zmian
+
+1. Zaktualizuj wersję:
+   ```bash
+   make version-patch  # lub version-minor/version-major
+   ```
+
+2. Zbuduj i opublikuj pakiet:
+   ```bash
+   make build
+   make publish
+   ```
+
+3. Zaktualizuj dokumentację:
+   ```bash
+   make docs-deploy
+   ```
+
 ## 📊 Analiza błędów
 
 mdiss automatycznie kategoryzuje błędy i określa priorytety:
 
-### Kategorie
+### Kategorie błędów
 - **dependencies** - Problemy z zależnościami (Poetry, npm)
 - **missing-files** - Brakujące pliki
 - **permissions** - Problemy z uprawnieniami
 - **timeout** - Przekroczenie czasu wykonania
 - **syntax** - Błędy składni (YAML, JSON)
 - **configuration** - Problemy konfiguracji
+
+### Priorytety
+- **CRITICAL** - Błędy krytyczne (np. błędy systemowe)
+- **HIGH** - Wysoki priorytet (np. błędy zależności)
+- **MEDIUM** - Średni priorytet (standardowe błędy)
+- **LOW** - Niski priorytet (drobne problemy, ostrzeżenia)
 
 ### Priorytety
 - **CRITICAL** - Segmentation faults, krytyczne błędy

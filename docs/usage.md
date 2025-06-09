@@ -1,104 +1,261 @@
-#!/usr/bin/env python3
-"""
-Podstawowe przykłady użycia mdiss API.
-"""
+# Użycie mdiss
 
-import os
-from pathlib import Path
+## Spis treści
+- [Podstawowe użycie](#podstawowe-użycie)
+- [Analiza plików markdown](#analiza-plików-markdown)
+- [Tworzenie zgłoszeń na GitHubie](#tworzenie-zgłoszeń-na-githubie)
+- [Konfiguracja](#konfiguracja)
+- [Przykłady użycia](#przykłady-użycia)
+- [Integracja z CI/CD](#integracja-z-cicd)
 
-from mdiss import MarkdownParser, GitHubClient, ErrorAnalyzer
-from mdiss.models import GitHubConfig, FailedCommand
+## Podstawowe użycie
 
+### Instalacja
 
-def example_1_basic_parsing():
-    """Przykład 1: Podstawowe parsowanie pliku markdown."""
-    print("🔍 Przykład 1: Parsowanie pliku markdown")
-    print("=" * 50)
-    
-    # Tworzenie parsera
-    parser = MarkdownParser()
-    
-    # Parsowanie pliku (przykładowy plik z fixtures)
-    commands = parser.parse_file("../tests/fixtures/sample_markdown.md")
-    
-    print(f"Znaleziono {len(commands)} nieudanych poleceń:")
-    
-    for i, cmd in enumerate(commands, 1):
-        print(f"\n{i}. {cmd.title}")
-        print(f"   Polecenie: {cmd.command}")
-        print(f"   Typ: {cmd.command_type}")
-        print(f"   Kod błędu: {cmd.return_code}")
-        print(f"   Czas: {cmd.execution_time}s")
+```bash
+# Instalacja z PyPI
+pip install mdiss
 
+# Wersja deweloperska
+pip install git+https://github.com/wronai/mdiss.git
+```
 
-def example_2_error_analysis():
-    """Przykład 2: Analiza błędów i kategoryzacja."""
-    print("\n🧠 Przykład 2: Analiza błędów")
-    print("=" * 50)
-    
-    # Przykładowe polecenie z błędem Poetry
-    poetry_command = FailedCommand(
-        title="Poetry Install Failed",
-        command="poetry install",
-        source="/home/user/project/pyproject.toml",
-        command_type="poetry",
-        status="Failed",
-        return_code=1,
-        execution_time=2.5,
-        output="Installing dependencies from lock file",
-        error_output="pyproject.toml changed significantly since poetry.lock was last generated. Run `poetry lock` to fix the lock file.",
-        metadata={"project": "myproject"}
-    )
-    
-    # Analiza błędu
-    analyzer = ErrorAnalyzer()
-    analysis = analyzer.analyze(poetry_command)
-    
-    print(f"Polecenie: {poetry_command.command}")
-    print(f"Priorytet: {analysis.priority.value.upper()}")
-    print(f"Kategoria: {analysis.category.value}")
-    print(f"Pewność: {analysis.confidence:.0%}")
-    print(f"\nPrzyczyna:")
-    print(analysis.root_cause)
-    print(f"\nSugerowane rozwiązanie:")
-    print(analysis.suggested_solution[:200] + "...")
+### Sprawdzenie wersji
 
+```bash
+mdiss --version
+```
 
-def example_3_github_integration():
-    """Przykład 3: Integracja z GitHub (dry run)."""
-    print("\n🔗 Przykład 3: Integracja z GitHub")
-    print("=" * 50)
+## Analiza plików markdown
+
+### Podstawowa analiza
+
+```bash
+# Analiza pojedynczego pliku
+mdiss analyze sciezka/do/pliku.md
+
+# Analiza wielu plików
+mdiss analyze "sciezka/do/pliki/*.md"
+
+# Wyświetl szczegółowe informacje
+mdiss analyze plik.md --verbose
+```
+
+### Opcje analizy
+
+```bash
+# Zapis wyników do pliku JSON
+mdiss analyze plik.md --output wyniki.json
+
+# Filtrowanie po typie błędu
+mdiss analyze plik.md --filter "category=dependencies"
+
+# Minimalny poziom pewności (0-1)
+mdiss analyze plik.md --min-confidence 0.8
+```
+
+## Tworzenie zgłoszeń na GitHubie
+
+### Konfiguracja tokenu
+
+```bash
+# Interaktywna konfiguracja
+mdiss setup
+
+# Ręczne ustawienie tokenu
+export GITHUB_TOKEN="twój_token_github"
+```
+
+### Tworzenie zgłoszeń
+
+```bash
+# Podgląd zgłoszeń (bez tworzenia)
+mdiss create plik.md wronai mdiss --dry-run
+
+# Rzeczywiste utworzenie zgłoszeń
+mdiss create plik.md wronai mdiss
+
+# Z dodatkowymi opcjami
+mdiss create plik.md wronai mdiss \
+    --assignees "user1,user2" \
+    --labels "bug,high" \
+    --milestone "Sprint 1"
+```
+
+## Konfiguracja
+
+### Plik konfiguracyjny
+
+Stwórz plik `~/.mdiss/config.toml`:
+
+```toml[github]
+token = "twój_token_github"
+log_level = "INFO"
+
+github:
+  default_owner = "wronai"
+  default_repo = "mdiss"
+  labels = ["bug", "enhancement"]
+  assignees = ["twój_github_username"]
+```
+
+### Zmienne środowiskowe
+
+```bash
+# Wymagane
+GITHUB_TOKEN=twój_token_github
+
+# Opcjonalne
+MDISS_LOG_LEVEL=INFO
+MDISS_CONFIG=ścieżka/do/konfiguracji.toml
+```
+
+## Przykłady użycia
+
+### Przykład 1: Analiza pojedynczego pliku
+
+```bash
+# Analiza pliku z błędami
+mdiss analyze testy/bledy.md --output raport.json
+
+# Podgląd raportu
+cat raport.json | jq .
+```
+
+### Przykład 2: Automatyczne zgłaszanie błędów
+
+```bash
+# Znajdź pliki z błędami i stwórz zgłoszenia
+find . -name "*.md" -type f -exec mdiss create {} wronai mdiss \;
+```
+
+### Przykład 3: Integracja z CI
+
+```yaml
+# .github/workflows/analyze.yml
+name: Analiza błędów
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
     
-    # Sprawdź czy token jest dostępny
-    token = os.environ.get('GITHUB_TOKEN') or input("Podaj GitHub token (lub Enter aby pominąć): ")
+    - name: Ustaw Pythona
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
     
-    if not token:
-        print("⏭️  Pomijam przykład GitHub - brak tokenu")
-        return
+    - name: Zainstaluj zależności
+      run: |
+        python -m pip install --upgrade pip
+        pip install mdiss
     
-    # Konfiguracja GitHub
-    config = GitHubConfig(
-        token=token,
-        owner="wronai",  # Zmień na swoje dane
-        repo="mdiss"     # Zmień na swoje repo
-    )
+    - name: Uruchom analizę
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Analizuj i twórz zgłoszenia
+        mdiss create "**/failures/*.md" wronai mdiss \
+          --assignees "${{ github.actor }}" \
+          --labels "ci,automated"
+```
+
+## Integracja z CI/CD
+
+### GitHub Actions
+
+Dodaj następujący plik do `.github/workflows/analyze.yml`:
+
+```yaml
+name: Analiza błędów
+
+on:
+  workflow_run:
+    workflows: ["Testy"]
+    types: [completed]
+
+jobs:
+  analyze-failures:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      contains(github.event.workflow_run.head_commit.message, '[analyze]')
     
-    # Tworzenie klienta
-    client = GitHubClient(config)
+    steps:
+    - uses: actions/checkout@v3
     
-    # Test połączenia
-    if client.test_connection():
-        print("✅ Połączenie z GitHub OK")
-        
-        # Przykładowe polecenie
-        failed_command = FailedCommand(
-            title="Test Command Failure",
-            command="make test",
-            source="/home/user/project/Makefile",
-            command_type="make_target",
-            status="Failed",
-            return_code=2,
-            execution_time=1.5,
+    - name: Uruchom analizę błędów
+      uses: wronai/mdiss/action@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        owner: wronai
+        repo: mdiss
+        path: '**/failures/*.md'
+        assignees: ${{ github.actor }}
+        labels: 'ci,automated'
+```
+
+### GitLab CI
+
+```yaml
+analyze:
+  stage: test
+  image: python:3.10
+  script:
+    - pip install mdiss
+    - mdiss analyze "**/*.md" --output gl-dependency-scanning-report.json
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - "**/*.md"
+        - ".gitlab-ci.yml"
+```
+
+## Rozwiązywanie problemów
+
+### Błąd: Brak uprawnień
+
+```
+Error: 403 Forbidden - Missing or insufficient permissions.
+```
+
+Rozwiązanie:
+1. Upewnij się, że token ma odpowiednie uprawnienia (`repo` i `write:issues`)
+2. Sprawdź, czy token nie wygasł
+3. Upewnij się, że masz uprawnienia do repozytorium
+
+### Błąd: Nieprawidłowy format pliku
+
+```
+Error: Invalid markdown format
+```
+
+Rozwiązanie:
+1. Sprawdź, czy plik istnieje i ma rozszerzenie .md
+2. Upewnij się, że plik zawiera poprawne znaczniki markdown
+3. Sprawdź kodowanie pliku (powinno być UTF-8)
+
+## Pomoc
+
+```bash
+# Wyświetl pomoc
+mdiss --help
+
+# Pomoc dla konkretnej komendy
+mdiss analyze --help
+mdiss create --help
+mdiss setup --help
+```
             output="Running tests...",
             error_output="Test failed: assertion error in test_example.py",
             metadata={"target": "test"}
