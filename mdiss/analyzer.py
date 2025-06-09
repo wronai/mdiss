@@ -253,15 +253,15 @@ class ErrorAnalyzer:
         return Priority.LOW
 
     def _determine_category(self, command: FailedCommand) -> Category:
-    """Określa kategorię błędu."""
-    error_text = command.error_output.lower()
+        """Określa kategorię błędu."""
+        error_text = command.error_output.lower()
 
-    for rule in self.category_rules:
-        for pattern in rule["patterns"]:
-            if re.search(pattern, error_text, re.IGNORECASE):
-                return rule["category"]
+        for rule in self.category_rules:
+            for pattern in rule["patterns"]:
+                if re.search(pattern, error_text, re.IGNORECASE):
+                    return rule["category"]
 
-    return Category.BUILD_FAILURE
+        return Category.BUILD_FAILURE
 
 
 def _analyze_root_cause(self, command: FailedCommand) -> str:
@@ -319,4 +319,8 @@ def get_category_statistics(self, commands: List[FailedCommand]) -> Dict[Categor
     """Zwraca statystyki kategorii błędów."""
     stats = {category: 0 for category in Category}
 
-    for
+    for command in commands:
+        category = self._determine_category(command)
+        stats[category] = stats.get(category, 0) + 1
+        
+    return stats

@@ -67,3 +67,62 @@ class AnalysisResult(BaseModel):
         default_factory=dict,
         description="Additional analysis information"
     )
+
+
+class GitHubConfig(BaseModel):
+    """Configuration for GitHub repository access."""
+    owner: str = Field(
+        ...,
+        description="Repository owner (username or organization)"
+    )
+    repo: str = Field(
+        ...,
+        description="Repository name"
+    )
+    token: str = Field(
+        ...,
+        description="GitHub access token with appropriate permissions"
+    )
+    base_url: str = Field(
+        "https://api.github.com",
+        description="Base URL for GitHub API (can be modified for GitHub Enterprise)"
+    )
+    default_labels: List[str] = Field(
+        default_factory=lambda: ["bug", "automated"],
+        description="Default labels to apply to created issues"
+    )
+    dry_run: bool = Field(
+        False,
+        description="If True, only log actions without making actual API calls"
+    )
+
+
+class IssueData(BaseModel):
+    """Data model for creating or updating GitHub issues."""
+    title: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="Title of the issue"
+    )
+    body: str = Field(
+        ...,
+        description="Body content of the issue (supports markdown)"
+    )
+    labels: List[str] = Field(
+        default_factory=list,
+        description="List of labels to apply to the issue"
+    )
+    assignees: List[str] = Field(
+        default_factory=list,
+        description="List of GitHub usernames to assign to the issue"
+    )
+    milestone: Optional[int] = Field(
+        None,
+        description="Milestone ID to associate the issue with"
+    )
+    state: str = Field(
+        "open",
+        description="State of the issue (open or closed)",
+        pattern="^(open|closed)$"
+    )

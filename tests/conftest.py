@@ -192,8 +192,8 @@ def pytest_configure(config):
 
 # Usprawnienie testów - automatyczne użycie mock dla requests w testach jednostkowych
 @pytest.fixture(autouse=True)
-def no_requests(monkeypatch):
-    """Automatycznie blokuj prawdziwe requesty HTTP w testach."""
+def no_requests(monkeypatch, request):
+    """Automatycznie blokuj prawdziwe requesty HTTP w testach jednostkowych."""
 
     def mock_request(*args, **kwargs):
         raise RuntimeError(
@@ -201,8 +201,8 @@ def no_requests(monkeypatch):
             "Use responses or mock the request."
         )
 
-    # Tylko dla testów jednostkowych
-    if "integration" not in pytest.current_request.keywords:
+    # Sprawdzamy czy test nie jest oznaczony jako integracyjny
+    if "integration" not in request.keywords:
         monkeypatch.setattr("requests.get", mock_request)
         monkeypatch.setattr("requests.post", mock_request)
         monkeypatch.setattr("requests.put", mock_request)

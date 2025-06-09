@@ -1,6 +1,7 @@
 # Environment variables
 .env
 venv
+.coverage
 # Caddy data and config
 /data
 /config

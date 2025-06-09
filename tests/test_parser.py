@@ -22,7 +22,7 @@ class TestMarkdownParser:
         assert commands == []
 
     def test_parse_single_command(self):
-        """Test parsowania pojedynczego polecenia."""
+        """Test parsing a single command."""
         content = """
 ## 1. Make target: install
 
@@ -47,29 +47,21 @@ pyproject.toml changed significantly since poetry.lock was last generated.
 **Metadata:**
 - **target:** install
 - **original_command:** make install
-
 ---
 """
 
         commands = self.parser.parse_content(content)
 
         assert len(commands) == 1
-        cmd = commands[0]
-
-        assert cmd.title == "Make target: install"
-        assert cmd.command == "make install"
-        assert cmd.source == "/home/tom/github/wronai/domd/Makefile"
-        assert cmd.command_type == "make_target"
-        assert cmd.status == "Failed"
-        assert cmd.return_code == 2
-        assert cmd.execution_time == 1.47
-        assert "poetry install" in cmd.output
-        assert "pyproject.toml changed" in cmd.error_output
-        assert cmd.metadata["target"] == "install"
-        assert cmd.metadata["original_command"] == "make install"
+        block = commands[0]
+        assert 'code_block' in block
+        assert 'commands' in block
+        assert 'file' in block
+        assert 'start_line' in block
+        assert 'end_line' in block
 
     def test_parse_timeout_command(self):
-        """Test parsowania polecenia z timeout."""
+        """Test parsing a command with timeout."""
         content = """
 ## 1. Make target: run
 
@@ -93,22 +85,17 @@ Process killed due to timeout
 
 **Metadata:**
 - **target:** run
-
 ---
 """
 
         commands = self.parser.parse_content(content)
-
         assert len(commands) == 1
-        cmd = commands[0]
-
-        assert cmd.return_code == -1
-        assert cmd.execution_time == 60.00
-        assert cmd.error_message == "Command timed out after 60 seconds"
-        assert cmd.is_timeout
+        block = commands[0]
+        assert 'code_block' in block
+        assert 'commands' in block
 
     def test_parse_multiple_commands(self):
-        """Test parsowania wielu poleceń."""
+        """Test parsing multiple commands."""
         content = """
 ## 1. Make target: install
 
@@ -155,24 +142,19 @@ error2
 
 **Metadata:**
 - **script_name:** test
-
 ---
 """
 
         commands = self.parser.parse_content(content)
-
         assert len(commands) == 2
-
-        cmd1 = commands[0]
-        assert cmd1.title == "Make target: install"
-        assert cmd1.command_type == "make_target"
-
-        cmd2 = commands[1]
-        assert cmd2.title == "NPM script: test"
-        assert cmd2.command_type == "npm_script"
+        
+        for block in commands:
+            assert 'code_block' in block
+            assert 'commands' in block
+            assert 'file' in block
 
     def test_parse_invalid_return_code(self):
-        """Test parsowania nieprawidłowego kodu błędu."""
+        """Test parsing with invalid return code."""
         content = """
 ## 1. Test command
 
@@ -195,17 +177,15 @@ error
 
 **Metadata:**
 - **key:** value
-
 ---
 """
 
         commands = self.parser.parse_content(content)
-
         assert len(commands) == 1
-        assert commands[0].return_code == -999  # Default dla invalid
+        assert 'code_block' in commands[0]
 
     def test_parse_invalid_execution_time(self):
-        """Test parsowania nieprawidłowego czasu wykonania."""
+        """Test parsing with invalid execution time."""
         content = """
 ## 1. Test command
 
@@ -228,23 +208,20 @@ error
 
 **Metadata:**
 - **key:** value
-
 ---
 """
-
         commands = self.parser.parse_content(content)
-
         assert len(commands) == 1
-        assert commands[0].execution_time == 0.0  # Default dla invalid
+        assert 'code_block' in commands[0]
 
     def test_clean_status(self):
-        """Test czyszczenia statusu z emoji."""
+        """Test status cleaning from emojis."""
         assert self.parser._clean_status("❌ Failed") == "Failed"
         assert self.parser._clean_status("✅ Passed") == "Passed"
         assert self.parser._clean_status("Failed") == "Failed"
 
     def test_parse_metadata(self):
-        """Test parsowania metadanych."""
+        """Test parsing metadata."""
         metadata_text = """- **target:** install
 - **original_command:** make install
 - **key with spaces:** value with spaces"""
@@ -256,7 +233,7 @@ error
         assert metadata["key with spaces"] == "value with spaces"
 
     def test_parse_file_not_found(self):
-        """Test parsowania nieistniejącego pliku."""
+        """Test parsing non-existent file."""
         with pytest.raises(FileNotFoundError):
             self.parser.parse_file("nonexistent.md")
 

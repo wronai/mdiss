@@ -132,3 +132,46 @@ class MarkdownParser:
         # This is a simplified implementation
         # In a real scenario, you would execute the commands and check for failures
         return []
+        
+    def get_statistics(self, commands: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Generate statistics about the commands.
+        
+        Args:
+            commands: List of command dictionaries
+            
+        Returns:
+            Dictionary with statistics
+        """
+        if not commands:
+            return {
+                'total_commands': 0,
+                'failed_commands': 0,
+                'success_rate': 1.0,
+                'error_codes': {},
+                'command_types': {}
+            }
+            
+        total = len(commands)
+        failed = sum(1 for cmd in commands if cmd.get('exit_code', 0) != 0)
+        success_rate = (total - failed) / total if total > 0 else 1.0
+        
+        error_codes = {}
+        command_types = {}
+        
+        for cmd in commands:
+            # Count error codes
+            error_code = cmd.get('exit_code', 0)
+            error_codes[error_code] = error_codes.get(error_code, 0) + 1
+            
+            # Count command types from metadata if available
+            cmd_type = cmd.get('metadata', {}).get('command_type', 'unknown')
+            command_types[cmd_type] = command_types.get(cmd_type, 0) + 1
+        
+        return {
+            'total_commands': total,
+            'failed_commands': failed,
+            'success_rate': success_rate,
+            'error_codes': error_codes,
+            'command_types': command_types
+        }
