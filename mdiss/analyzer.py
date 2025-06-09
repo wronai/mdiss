@@ -2,10 +2,10 @@
 Analizator błędów dla określania priorytetów, kategorii i sugestii rozwiązań.
 """
 
-from typing import Dict, List
 import re
+from typing import Dict, List
 
-from .models import FailedCommand, Priority, Category, AnalysisResult
+from .models import AnalysisResult, Category, FailedCommand, Priority
 
 
 class ErrorAnalyzer:
@@ -46,90 +46,93 @@ class ErrorAnalyzer:
             {
                 "condition": lambda cmd: cmd.is_timeout,
                 "priority": Priority.HIGH,
-                "reason": "Command timeout"
+                "reason": "Command timeout",
             },
             {
                 "condition": lambda cmd: cmd.is_critical,
                 "priority": Priority.CRITICAL,
-                "reason": "Critical system error"
+                "reason": "Critical system error",
             },
             {
                 "condition": lambda cmd: "poetry.lock" in cmd.error_output.lower(),
                 "priority": Priority.HIGH,
-                "reason": "Dependency lock file issue"
+                "reason": "Dependency lock file issue",
             },
             {
-                "condition": lambda cmd: "segmentation fault" in cmd.error_output.lower(),
+                "condition": lambda cmd: "segmentation fault"
+                in cmd.error_output.lower(),
                 "priority": Priority.CRITICAL,
-                "reason": "Segmentation fault"
+                "reason": "Segmentation fault",
             },
             {
                 "condition": lambda cmd: cmd.return_code in [2, 1],
                 "priority": Priority.MEDIUM,
-                "reason": "Standard error code"
+                "reason": "Standard error code",
             },
             {
                 "condition": lambda cmd: "not found" in cmd.error_output.lower(),
                 "priority": Priority.MEDIUM,
-                "reason": "Missing dependency or file"
+                "reason": "Missing dependency or file",
             },
         ]
 
-    def _analyze_root_cause(self, command: 'FailedCommand') -> str:
+    def _analyze_root_cause(self, command: "FailedCommand") -> str:
         """Analizuje główną przyczynę błędu."""
         error_text = (command.error_output or "").lower()
-        
+
         if "poetry.lock" in error_text:
             return "Plik poetry.lock jest niezsynchronizowany z pyproject.toml"
-            
+
         if command.is_timeout:
             return "Przekroczono limit czasu wykonania polecenia"
-            
+
         if "not found" in error_text:
             return "Nie znaleziono wymaganego pliku lub katalogu"
-            
+
         if "permission denied" in error_text:
             return "Brak uprawnień do wykonania operacji"
-            
+
         if "syntax error" in error_text:
             return "Błąd składni w pliku konfiguracyjnym lub skrypcie"
-            
+
         if command.return_code == 127:  # Command not found
             return "Polecenie nie zostało znalezione w systemie"
-            
+
         if command.return_code == 126:  # Permission denied
             return "Brak uprawnień do wykonania pliku"
-            
+
         return "Nieznana przyczyna błędu"
-        
-    def _suggest_solution(self, command: 'FailedCommand', category: 'Category') -> str:
+
+    def _suggest_solution(self, command: "FailedCommand", category: "Category") -> str:
         """Sugeruje rozwiązanie na podstawie kategorii błędu."""
         error_text = (command.error_output or "").lower()
-        
+
         if category == Category.DEPENDENCY or "poetry.lock" in error_text:
             return "Uruchom `poetry lock` i spróbuj ponownie"
-            
+
         if category == Category.TIMEOUT or command.is_timeout:
             return "Zwiększ limit czasu wykonania lub zoptymalizuj polecenie"
-            
+
         if "not found" in error_text:
             return "Sprawdź poprawność ścieżki i upewnij się, że plik istnieje"
-            
+
         if "permission denied" in error_text:
             return "Sprawdź uprawnienia do plików i katalogów"
-            
+
         if command.return_code == 127:  # Command not found
             return "Sprawdź, czy program jest zainstalowany i dostępny w ścieżce systemowej"
-            
+
         if command.return_code == 126:  # Permission denied
             return "Nadaj odpowiednie uprawnienia do pliku (chmod +x)"
-            
+
         return "Sprawdź logi błędów w celu uzyskania więcej informacji"
-        
-    def _calculate_confidence(self, command: 'FailedCommand', category: 'Category') -> float:
+
+    def _calculate_confidence(
+        self, command: "FailedCommand", category: "Category"
+    ) -> float:
         """Oblicza poziom pewności analizy (0.0 - 1.0)."""
         confidence = 0.7  # Bazowy poziom pewności
-        
+
         # Zwiększ pewność, jeśli mamy jednoznaczne oznaki błędu
         if command.is_timeout or "timeout" in (command.error_output or "").lower():
             confidence = 0.9
@@ -137,15 +140,15 @@ class ErrorAnalyzer:
             confidence = 0.85
         elif "permission denied" in (command.error_output or "").lower():
             confidence = 0.8
-            
+
         # Zwiększ pewność, jeśli mamy konkretny kod błędu
         if command.return_code in [126, 127]:  # Permission denied, Command not found
             confidence = max(confidence, 0.9)
-            
+
         # Zmniejsz pewność, jeśli nie ma szczegółowych informacji o błędzie
         if not command.error_output and command.return_code == 1:
             confidence = 0.5
-            
+
         return min(max(confidence, 0.0), 1.0)  # Zapewnij wartość w zakresie 0.0-1.0
 
     def _build_category_rules(self) -> List[Dict]:
@@ -160,7 +163,11 @@ class ErrorAnalyzer:
                 "category": Category.MISSING_FILES,
             },
             {
-                "patterns": [r"permission denied", r"cannot.*--user", r"not visible in.*virtualenv"],
+                "patterns": [
+                    r"permission denied",
+                    r"cannot.*--user",
+                    r"not visible in.*virtualenv",
+                ],
                 "category": Category.PERMISSION,
             },
             {
@@ -168,7 +175,12 @@ class ErrorAnalyzer:
                 "category": Category.TIMEOUT,
             },
             {
-                "patterns": [r"syntax error", r"parse.*error", r"yaml.*constructor", r"invalid.*syntax"],
+                "patterns": [
+                    r"syntax error",
+                    r"parse.*error",
+                    r"yaml.*constructor",
+                    r"invalid.*syntax",
+                ],
                 "category": Category.SYNTAX,
             },
             {
@@ -362,7 +374,9 @@ def _analyze_root_cause(self, command: FailedCommand) -> str:
 
 def _suggest_solution(self, command: FailedCommand, category: Category) -> str:
     """Sugeruje rozwiązanie na podstawie kategorii błędu."""
-    return self.solution_templates.get(category, self.solution_templates[Category.BUILD_FAILURE])
+    return self.solution_templates.get(
+        category, self.solution_templates[Category.BUILD_FAILURE]
+    )
 
 
 def _calculate_confidence(self, command: FailedCommand, category: Category) -> float:
@@ -380,8 +394,9 @@ def _calculate_confidence(self, command: FailedCommand, category: Category) -> f
     }
 
     if category in clear_patterns:
-        pattern_matches = sum(1 for pattern in clear_patterns[category]
-                              if pattern in error_text)
+        pattern_matches = sum(
+            1 for pattern in clear_patterns[category] if pattern in error_text
+        )
         confidence += pattern_matches * 0.2
 
     # Ogranicz do zakresu 0.0-1.0
@@ -395,5 +410,5 @@ def get_category_statistics(self, commands: List[FailedCommand]) -> Dict[Categor
     for command in commands:
         category = self._determine_category(command)
         stats[category] = stats.get(category, 0) + 1
-        
+
     return stats

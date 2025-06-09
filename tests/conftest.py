@@ -2,9 +2,10 @@
 Konfiguracja pytest dla testów mdiss.
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
+
+import pytest
 
 from mdiss.models import FailedCommand, GitHubConfig
 
@@ -22,7 +23,7 @@ def sample_failed_command():
         execution_time=1.47,
         output="make[1]: Entering directory",
         error_output="poetry.lock changed significantly",
-        metadata={"target": "install", "original_command": "make install"}
+        metadata={"target": "install", "original_command": "make install"},
     )
 
 
@@ -40,7 +41,7 @@ def timeout_command():
         output="Starting process...",
         error_output="Command timed out after 60 seconds",
         metadata={"target": "run"},
-        error_message="Command timed out after 60 seconds"
+        error_message="Command timed out after 60 seconds",
     )
 
 
@@ -57,7 +58,7 @@ def npm_command():
         execution_time=2.79,
         output="",
         error_output="npm error code ENOENT\nnpm error syscall open\nnpm error path /home/test/package.json",
-        metadata={"script_name": "test", "script_command": "echo test"}
+        metadata={"script_name": "test", "script_command": "echo test"},
     )
 
 
@@ -70,11 +71,7 @@ def sample_commands(sample_failed_command, timeout_command, npm_command):
 @pytest.fixture
 def github_config():
     """Przykładowa konfiguracja GitHub."""
-    return GitHubConfig(
-        token="test_token_123",
-        owner="test_owner",
-        repo="test_repo"
-    )
+    return GitHubConfig(token="test_token_123", owner="test_owner", repo="test_repo")
 
 
 @pytest.fixture
@@ -153,13 +150,9 @@ def mock_github_response():
         "body": "## Problem Description\nCommand `make install` is failing...",
         "state": "open",
         "html_url": "https://github.com/test_owner/test_repo/issues/1",
-        "labels": [
-            {"name": "bug"},
-            {"name": "high"},
-            {"name": "dependencies"}
-        ],
+        "labels": [{"name": "bug"}, {"name": "high"}, {"name": "dependencies"}],
         "created_at": "2023-01-01T00:00:00Z",
-        "updated_at": "2023-01-01T00:00:00Z"
+        "updated_at": "2023-01-01T00:00:00Z",
     }
 
 
@@ -172,22 +165,16 @@ def mock_repo_response():
         "full_name": "test_owner/test_repo",
         "description": "Test repository",
         "private": False,
-        "html_url": "https://github.com/test_owner/test_repo"
+        "html_url": "https://github.com/test_owner/test_repo",
     }
 
 
 # Markery pytest
 def pytest_configure(config):
     """Konfiguracja pytest."""
-    config.addinivalue_line(
-        "markers", "unit: Unit tests"
-    )
-    config.addinivalue_line(
-        "markers", "integration: Integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "slow: Slow tests"
-    )
+    config.addinivalue_line("markers", "unit: Unit tests")
+    config.addinivalue_line("markers", "integration: Integration tests")
+    config.addinivalue_line("markers", "slow: Slow tests")
 
 
 # Usprawnienie testów - automatyczne użycie mock dla requests w testach jednostkowych
@@ -211,11 +198,11 @@ def no_requests(monkeypatch, request):
 
 # Helper do tworzenia mocków
 def create_mock_command(
-        title="Test Command",
-        command="test command",
-        command_type="test",
-        return_code=1,
-        error_output="test error"
+    title="Test Command",
+    command="test command",
+    command_type="test",
+    return_code=1,
+    error_output="test error",
 ):
     """Helper do tworzenia mock command."""
     return FailedCommand(
@@ -228,7 +215,7 @@ def create_mock_command(
         execution_time=1.0,
         output="test output",
         error_output=error_output,
-        metadata={"key": "value"}
+        metadata={"key": "value"},
     )
 
 
@@ -236,7 +223,7 @@ def create_mock_command(
 @pytest.fixture
 def current_request():
     """Bieżące żądanie pytest."""
-    return pytest.current_request if hasattr(pytest, 'current_request') else MagicMock()
+    return pytest.current_request if hasattr(pytest, "current_request") else MagicMock()
 
 
 # Performance fixtures
@@ -245,10 +232,12 @@ def large_command_list():
     """Duża lista poleceń do testów wydajności."""
     commands = []
     for i in range(100):
-        commands.append(create_mock_command(
-            title=f"Command {i}",
-            command=f"test_command_{i}",
-            command_type="make_target" if i % 2 == 0 else "npm_script",
-            return_code=2 if i % 3 == 0 else 1
-        ))
+        commands.append(
+            create_mock_command(
+                title=f"Command {i}",
+                command=f"test_command_{i}",
+                command_type="make_target" if i % 2 == 0 else "npm_script",
+                return_code=2 if i % 3 == 0 else 1,
+            )
+        )
     return commands

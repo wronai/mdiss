@@ -2,10 +2,10 @@
 Parsers package for various input formats.
 """
 
-from .json_parser import JSONLogParser, GitHubActionsParser, JenkinsParser
-from .xml_parser import XMLTestParser, JUnitParser, TestNGParser
-from .yaml_parser import YAMLCIParser, GitHubActionsYAMLParser, GitLabCIParser
-from .log_parser import LogFileParser, BuildLogParser
+from .json_parser import GitHubActionsParser, JenkinsParser, JSONLogParser
+from .log_parser import BuildLogParser, LogFileParser
+from .xml_parser import JUnitParser, TestNGParser, XMLTestParser
+from .yaml_parser import GitHubActionsYAMLParser, GitLabCIParser, YAMLCIParser
 
 __all__ = [
     "JSONLogParser",

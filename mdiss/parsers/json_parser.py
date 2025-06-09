@@ -6,7 +6,7 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from ..models import FailedCommand
 
@@ -20,10 +20,12 @@ class JSONLogParser:
             "jenkins",
             "gitlab-ci",
             "circleci",
-            "generic"
+            "generic",
         ]
 
-    def parse_file(self, file_path: str, format_type: str = "auto") -> List[FailedCommand]:
+    def parse_file(
+        self, file_path: str, format_type: str = "auto"
+    ) -> List[FailedCommand]:
         """
         Parse JSON log file.
 
@@ -38,7 +40,7 @@ class JSONLogParser:
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         if format_type == "auto":
@@ -60,7 +62,9 @@ class JSONLogParser:
 
         return "generic"
 
-    def _parse_by_format(self, data: Dict, format_type: str, source: str) -> List[FailedCommand]:
+    def _parse_by_format(
+        self, data: Dict, format_type: str, source: str
+    ) -> List[FailedCommand]:
         """Parse data by detected format."""
         parsers = {
             "github-actions": GitHubActionsParser(),
@@ -94,7 +98,9 @@ class GitHubActionsParser:
 
         return commands
 
-    def _parse_job(self, job_name: str, job_data: Dict, source: str) -> List[FailedCommand]:
+    def _parse_job(
+        self, job_name: str, job_data: Dict, source: str
+    ) -> List[FailedCommand]:
         """Parse a single job."""
         commands = []
 
@@ -113,7 +119,9 @@ class GitHubActionsParser:
         conclusion = step.get("conclusion", "").lower()
         return conclusion in ["failure", "error", "cancelled", "timed_out"]
 
-    def _create_command_from_step(self, job_name: str, step: Dict, source: str) -> FailedCommand:
+    def _create_command_from_step(
+        self, job_name: str, step: Dict, source: str
+    ) -> FailedCommand:
         """Create FailedCommand from step data."""
         step_name = step.get("name", "Unknown Step")
         command = step.get("run", step.get("uses", "unknown command"))
@@ -147,7 +155,7 @@ class GitHubActionsParser:
                 "conclusion": conclusion,
                 "runner": step.get("runner", "unknown"),
                 "workflow_run_id": step.get("workflow_run_id"),
-            }
+            },
         )
 
     def _extract_error_from_logs(self, logs: str) -> str:
@@ -169,23 +177,30 @@ class GitHubActionsParser:
                 return matches[0].strip()
 
         # Return first few lines if no specific error found
-        lines = logs.split('\n')
-        error_lines = [line for line in lines if
-                       any(keyword in line.lower() for keyword in ['error', 'failed', 'exception'])]
+        lines = logs.split("\n")
+        error_lines = [
+            line
+            for line in lines
+            if any(
+                keyword in line.lower() for keyword in ["error", "failed", "exception"]
+            )
+        ]
 
         if error_lines:
-            return '\n'.join(error_lines[:5])
+            return "\n".join(error_lines[:5])
 
         return logs[:500] + "..." if len(logs) > 500 else logs
 
-    def _calculate_duration(self, started_at: Optional[str], completed_at: Optional[str]) -> float:
+    def _calculate_duration(
+        self, started_at: Optional[str], completed_at: Optional[str]
+    ) -> float:
         """Calculate execution duration."""
         if not started_at or not completed_at:
             return 0.0
 
         try:
-            start = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
-            end = datetime.fromisoformat(completed_at.replace('Z', '+00:00'))
+            start = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+            end = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
             return (end - start).total_seconds()
         except (ValueError, AttributeError):
             return 0.0
@@ -231,7 +246,9 @@ class JenkinsParser:
         if "steps" in build_data:
             for step in build_data["steps"]:
                 if self._is_failed_step(step):
-                    command = self._create_command_from_build_step(build_data, step, source)
+                    command = self._create_command_from_build_step(
+                        build_data, step, source
+                    )
                     commands.append(command)
         else:
             # Create command from build itself
@@ -244,7 +261,9 @@ class JenkinsParser:
         """Check if Jenkins step failed."""
         return step.get("result", "").upper() in ["FAILURE", "ABORTED", "UNSTABLE"]
 
-    def _create_command_from_build(self, build_data: Dict, source: str) -> FailedCommand:
+    def _create_command_from_build(
+        self, build_data: Dict, source: str
+    ) -> FailedCommand:
         """Create FailedCommand from Jenkins build."""
         job_name = build_data.get("jobName", "Unknown Job")
         build_number = build_data.get("number", "unknown")
@@ -273,10 +292,12 @@ class JenkinsParser:
                 "result": result,
                 "url": build_data.get("url", ""),
                 "node": build_data.get("builtOn", "unknown"),
-            }
+            },
         )
 
-    def _create_command_from_build_step(self, build_data: Dict, step: Dict, source: str) -> FailedCommand:
+    def _create_command_from_build_step(
+        self, build_data: Dict, step: Dict, source: str
+    ) -> FailedCommand:
         """Create FailedCommand from Jenkins build step."""
         job_name = build_data.get("jobName", "Unknown Job")
         build_number = build_data.get("number", "unknown")
@@ -288,7 +309,9 @@ class JenkinsParser:
             source=source,
             command_type="jenkins_step",
             status="Failed",
-            return_code=self._jenkins_result_to_return_code(step.get("result", "FAILURE")),
+            return_code=self._jenkins_result_to_return_code(
+                step.get("result", "FAILURE")
+            ),
             execution_time=step.get("durationInMs", 0) / 1000.0,
             output=step.get("log", ""),
             error_output=self._extract_jenkins_error(step.get("log", "")),
@@ -297,7 +320,7 @@ class JenkinsParser:
                 "build_number": build_number,
                 "step_name": step_name,
                 "result": step.get("result"),
-            }
+            },
         )
 
     def _extract_jenkins_error(self, console_output: str) -> str:
@@ -317,20 +340,27 @@ class JenkinsParser:
         for pattern in error_patterns:
             matches = re.findall(pattern, console_output, re.MULTILINE)
             if matches:
-                return matches[-1] if isinstance(matches[-1], str) else ' '.join(matches[-1])
+                return (
+                    matches[-1]
+                    if isinstance(matches[-1], str)
+                    else " ".join(matches[-1])
+                )
 
         # Look for lines with ERROR or FAILED
-        lines = console_output.split('\n')
+        lines = console_output.split("\n")
         error_lines = []
         for line in lines:
-            if any(keyword in line.upper() for keyword in ['ERROR', 'FAILED', 'EXCEPTION', 'FATAL']):
+            if any(
+                keyword in line.upper()
+                for keyword in ["ERROR", "FAILED", "EXCEPTION", "FATAL"]
+            ):
                 error_lines.append(line.strip())
 
         if error_lines:
-            return '\n'.join(error_lines[-5:])  # Last 5 error lines
+            return "\n".join(error_lines[-5:])  # Last 5 error lines
 
         # Return last 10 lines as fallback
-        return '\n'.join(lines[-10:])
+        return "\n".join(lines[-10:])
 
     def _jenkins_result_to_return_code(self, result: str) -> int:
         """Map Jenkins result to return code."""
@@ -406,7 +436,7 @@ class GitLabCIParser:
                 "runner": job.get("runner", {}).get("description", "unknown"),
                 "pipeline_id": job.get("pipeline", {}).get("id"),
                 "job_url": job.get("web_url", ""),
-            }
+            },
         )
 
     def _extract_gitlab_error(self, logs: str) -> str:
@@ -431,25 +461,32 @@ class GitLabCIParser:
 
         # Look for section starting with "Running with gitlab-runner"
         # and find errors after that
-        lines = logs.split('\n')
+        lines = logs.split("\n")
         error_lines = []
         in_execution = False
 
         for line in lines:
             if "Running with gitlab-runner" in line:
                 in_execution = True
-            elif in_execution and any(keyword in line.lower() for keyword in ['error', 'failed', 'exception']):
+            elif in_execution and any(
+                keyword in line.lower() for keyword in ["error", "failed", "exception"]
+            ):
                 error_lines.append(line.strip())
 
         if error_lines:
-            return '\n'.join(error_lines[-3:])
+            return "\n".join(error_lines[-3:])
 
         # Return lines containing error keywords
-        error_lines = [line for line in lines if
-                       any(keyword in line.lower() for keyword in ['error', 'failed', 'exception'])]
+        error_lines = [
+            line
+            for line in lines
+            if any(
+                keyword in line.lower() for keyword in ["error", "failed", "exception"]
+            )
+        ]
 
         if error_lines:
-            return '\n'.join(error_lines[-3:])
+            return "\n".join(error_lines[-3:])
 
         return logs[-500:] if len(logs) > 500 else logs
 
@@ -501,7 +538,9 @@ class CircleCIParser:
 
         return commands
 
-    def _create_command_from_step(self, job: Dict, step: Dict, source: str) -> FailedCommand:
+    def _create_command_from_step(
+        self, job: Dict, step: Dict, source: str
+    ) -> FailedCommand:
         """Create FailedCommand from CircleCI step."""
         job_name = job.get("name", "Unknown Job")
         step_name = step.get("name", "Unknown Step")
@@ -520,7 +559,7 @@ class CircleCIParser:
                 "job_name": job_name,
                 "step_name": step_name,
                 "workflow": job.get("workflow_name", "unknown"),
-            }
+            },
         )
 
 
@@ -544,14 +583,22 @@ class GenericJSONParser:
     def _looks_like_failure(self, data: Dict) -> bool:
         """Check if data looks like a failure."""
         failure_indicators = [
-            "error", "failed", "failure", "exception", "stderr",
-            "exit_code", "return_code", "status"
+            "error",
+            "failed",
+            "failure",
+            "exception",
+            "stderr",
+            "exit_code",
+            "return_code",
+            "status",
         ]
 
         data_str = str(data).lower()
         return any(indicator in data_str for indicator in failure_indicators)
 
-    def _search_nested_failures(self, data: Any, source: str, path: str = "") -> List[FailedCommand]:
+    def _search_nested_failures(
+        self, data: Any, source: str, path: str = ""
+    ) -> List[FailedCommand]:
         """Recursively search for failures in nested data."""
         commands = []
 
@@ -560,10 +607,14 @@ class GenericJSONParser:
                 new_path = f"{path}.{key}" if path else key
 
                 if isinstance(value, (dict, list)):
-                    commands.extend(self._search_nested_failures(value, source, new_path))
+                    commands.extend(
+                        self._search_nested_failures(value, source, new_path)
+                    )
                 elif self._is_failure_field(key, value):
                     # Found a potential failure
-                    command = self._create_generic_command({key: value}, source, new_path)
+                    command = self._create_generic_command(
+                        {key: value}, source, new_path
+                    )
                     commands.append(command)
 
         elif isinstance(data, list):
@@ -581,15 +632,25 @@ class GenericJSONParser:
         if any(fkey in key_lower for fkey in failure_keys):
             return True
 
-        if key_lower in ["status", "result", "conclusion"] and str(value).lower() in ["failed", "error", "failure"]:
+        if key_lower in ["status", "result", "conclusion"] and str(value).lower() in [
+            "failed",
+            "error",
+            "failure",
+        ]:
             return True
 
-        if key_lower in ["exit_code", "return_code"] and isinstance(value, int) and value != 0:
+        if (
+            key_lower in ["exit_code", "return_code"]
+            and isinstance(value, int)
+            and value != 0
+        ):
             return True
 
         return False
 
-    def _create_generic_command(self, data: Dict, source: str, path: str = "") -> FailedCommand:
+    def _create_generic_command(
+        self, data: Dict, source: str, path: str = ""
+    ) -> FailedCommand:
         """Create generic FailedCommand."""
         title = f"Generic Failure"
         if path:
@@ -624,5 +685,5 @@ class GenericJSONParser:
             execution_time=data.get("duration", data.get("time", 0)),
             output=str(data.get("stdout", data.get("output", ""))),
             error_output=error_output,
-            metadata={"raw_data": data, "path": path}
+            metadata={"raw_data": data, "path": path},
         )

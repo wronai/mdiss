@@ -2,12 +2,13 @@
 Testy dla GitHubClient.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 import responses
-from unittest.mock import patch, MagicMock
 
 from mdiss.github_client import GitHubClient
-from mdiss.models import GitHubConfig, FailedCommand, IssueData
+from mdiss.models import FailedCommand, GitHubConfig, IssueData
 
 
 class TestGitHubClient:
@@ -16,9 +17,7 @@ class TestGitHubClient:
     def setup_method(self):
         """Setup przed każdym testem."""
         self.config = GitHubConfig(
-            token="test_token",
-            owner="test_owner",
-            repo="test_repo"
+            token="test_token", owner="test_owner", repo="test_repo"
         )
         self.client = GitHubClient(self.config)
 
@@ -35,17 +34,17 @@ class TestGitHubClient:
         assert self.client.session.headers["Accept"] == "application/vnd.github.v3+json"
         assert self.client.session.headers["User-Agent"] == "mdiss/1.0.60"
 
-    @patch('webbrowser.open')
-    @patch('getpass.getpass', return_value='test_token_123')
+    @patch("webbrowser.open")
+    @patch("getpass.getpass", return_value="test_token_123")
     def test_setup_token(self, mock_getpass, mock_browser):
         """Test konfiguracji tokenu."""
         token = GitHubClient.setup_token()
 
-        assert token == 'test_token_123'
+        assert token == "test_token_123"
         mock_browser.assert_called_once_with("https://github.com/settings/tokens/new")
         mock_getpass.assert_called_once()
 
-    @patch('getpass.getpass', return_value='')
+    @patch("getpass.getpass", return_value="")
     def test_setup_token_empty_raises_error(self, mock_getpass):
         """Test że pusty token wywołuje błąd."""
         with pytest.raises(ValueError, match="Token cannot be empty"):
@@ -53,11 +52,7 @@ class TestGitHubClient:
 
     def test_set_config(self):
         """Test ustawiania konfiguracji."""
-        new_config = GitHubConfig(
-            token="new_token",
-            owner="new_owner",
-            repo="new_repo"
-        )
+        new_config = GitHubConfig(token="new_token", owner="new_owner", repo="new_repo")
 
         client = GitHubClient()
         client.set_config(new_config)
@@ -72,7 +67,7 @@ class TestGitHubClient:
             responses.GET,
             "https://api.github.com/repos/test_owner/test_repo",
             json={"name": "test_repo"},
-            status=200
+            status=200,
         )
 
         assert self.client.test_connection() is True
@@ -84,7 +79,7 @@ class TestGitHubClient:
             responses.GET,
             "https://api.github.com/repos/test_owner/test_repo",
             json={"message": "Not Found"},
-            status=404
+            status=404,
         )
 
         assert self.client.test_connection() is False
@@ -100,7 +95,7 @@ class TestGitHubClient:
         issue_data = {
             "title": "Test issue",
             "body": "Test body",
-            "labels": ["bug", "test"]
+            "labels": ["bug", "test"],
         }
 
         responses.add(
@@ -110,9 +105,9 @@ class TestGitHubClient:
                 "id": 123,
                 "number": 1,
                 "title": "Test issue",
-                "html_url": "https://github.com/test_owner/test_repo/issues/1"
+                "html_url": "https://github.com/test_owner/test_repo/issues/1",
             },
-            status=201
+            status=201,
         )
 
         result = self.client.create_issue(issue=issue_data)
@@ -124,17 +119,13 @@ class TestGitHubClient:
     @responses.activate
     def test_create_issue_failure(self):
         """Test nieudanego tworzenia issue."""
-        issue_data = IssueData(
-            title="Test issue",
-            body="Test body",
-            labels=["bug"]
-        )
+        issue_data = IssueData(title="Test issue", body="Test body", labels=["bug"])
 
         responses.add(
             responses.POST,
             "https://api.github.com/repos/test_owner/test_repo/issues",
             json={"message": "Validation Failed"},
-            status=422
+            status=422,
         )
 
         with pytest.raises(Exception):
@@ -143,13 +134,11 @@ class TestGitHubClient:
     def test_create_issue_without_config(self):
         """Test creating an issue without configuration."""
         client = GitHubClient()
-        issue_data = {
-            "title": "Test",
-            "body": "Body",
-            "labels": []
-        }
+        issue_data = {"title": "Test", "body": "Body", "labels": []}
 
-        with pytest.raises(ValueError, match="Owner and repo must be provided or set in config"):
+        with pytest.raises(
+            ValueError, match="Owner and repo must be provided or set in config"
+        ):
             client.create_issue(issue=issue_data)
 
     def test_create_issue_from_command(self):
@@ -164,10 +153,10 @@ class TestGitHubClient:
             execution_time=1.5,
             output="make output",
             error_output="poetry.lock error",
-            metadata={"target": "install"}
+            metadata={"target": "install"},
         )
 
-        with patch.object(self.client, 'create_issue') as mock_create:
+        with patch.object(self.client, "create_issue") as mock_create:
             mock_create.return_value = {"id": 123}
 
             result = self.client.create_issue_from_command(command)
@@ -185,9 +174,15 @@ class TestGitHubClient:
         """Test tworzenia tytułu issue."""
         command = FailedCommand(
             title="Test Command",
-            command="test", source="/test", command_type="test",
-            status="Failed", return_code=1, execution_time=1.0,
-            output="", error_output="", metadata={}
+            command="test",
+            source="/test",
+            command_type="test",
+            status="Failed",
+            return_code=1,
+            execution_time=1.0,
+            output="",
+            error_output="",
+            metadata={},
         )
 
         title = self.client._create_title(command)
@@ -196,7 +191,7 @@ class TestGitHubClient:
     def test_create_body(self):
         """Test tworzenia treści issue."""
         from mdiss.analyzer import ErrorAnalyzer
-        from mdiss.models import Priority, Category, AnalysisResult
+        from mdiss.models import AnalysisResult, Category, Priority
 
         command = FailedCommand(
             title="Test Command",
@@ -208,7 +203,7 @@ class TestGitHubClient:
             execution_time=1.5,
             output="test output",
             error_output="test error",
-            metadata={"target": "test"}
+            metadata={"target": "test"},
         )
 
         analysis = AnalysisResult(
@@ -216,7 +211,7 @@ class TestGitHubClient:
             category=Category.BUILD_FAILURE,
             root_cause="Test root cause",
             suggested_solution="Test solution",
-            confidence=0.8
+            confidence=0.8,
         )
 
         body = self.client._create_body(command, analysis)
@@ -234,20 +229,26 @@ class TestGitHubClient:
 
     def test_create_labels(self):
         """Test tworzenia labeli."""
-        from mdiss.models import Priority, Category, AnalysisResult
+        from mdiss.models import AnalysisResult, Category, Priority
 
         command = FailedCommand(
             title="Test",
-            command="test", source="/test", command_type="make_target",
-            status="Failed", return_code=-1, execution_time=60.0,
-            output="", error_output="", metadata={}
+            command="test",
+            source="/test",
+            command_type="make_target",
+            status="Failed",
+            return_code=-1,
+            execution_time=60.0,
+            output="",
+            error_output="",
+            metadata={},
         )
 
         analysis = AnalysisResult(
             priority=Priority.HIGH,
             category=Category.TIMEOUT,
             root_cause="",
-            suggested_solution=""
+            suggested_solution="",
         )
 
         labels = self.client._create_labels(command, analysis)
@@ -268,9 +269,9 @@ class TestGitHubClient:
             json={
                 "name": "test_repo",
                 "full_name": "test_owner/test_repo",
-                "description": "Test repository"
+                "description": "Test repository",
             },
-            status=200
+            status=200,
         )
 
         info = self.client.get_repository_info()
@@ -285,20 +286,10 @@ class TestGitHubClient:
             responses.GET,
             "https://api.github.com/repos/test_owner/test_repo/issues",
             json=[
-                {
-                    "id": 1,
-                    "number": 1,
-                    "title": "Issue 1",
-                    "state": "open"
-                },
-                {
-                    "id": 2,
-                    "number": 2,
-                    "title": "Issue 2",
-                    "state": "closed"
-                }
+                {"id": 1, "number": 1, "title": "Issue 1", "state": "open"},
+                {"id": 2, "number": 2, "title": "Issue 2", "state": "closed"},
             ],
-            status=200
+            status=200,
         )
 
         issues = self.client.list_issues()
@@ -314,7 +305,7 @@ class TestGitHubClient:
             responses.GET,
             "https://api.github.com/repos/test_owner/test_repo/issues",
             json=[],
-            status=200
+            status=200,
         )
 
         self.client.list_issues(state="closed", labels="bug,enhancement")
@@ -329,22 +320,24 @@ class TestGitHubClient:
         """Test sprawdzania istniejącego issue - znaleziony."""
         command = FailedCommand(
             title="Test Command",
-            command="test", source="/test", command_type="test",
-            status="Failed", return_code=1, execution_time=1.0,
-            output="", error_output="", metadata={}
+            command="test",
+            source="/test",
+            command_type="test",
+            status="Failed",
+            return_code=1,
+            execution_time=1.0,
+            output="",
+            error_output="",
+            metadata={},
         )
 
         responses.add(
             responses.GET,
             "https://api.github.com/repos/test_owner/test_repo/issues",
             json=[
-                {
-                    "id": 1,
-                    "title": "Fix failed command: Test Command",
-                    "state": "open"
-                }
+                {"id": 1, "title": "Fix failed command: Test Command", "state": "open"}
             ],
-            status=200
+            status=200,
         )
 
         existing = self.client.check_existing_issue(command)
@@ -358,22 +351,22 @@ class TestGitHubClient:
         """Test sprawdzania istniejącego issue - nie znaleziony."""
         command = FailedCommand(
             title="Test Command",
-            command="test", source="/test", command_type="test",
-            status="Failed", return_code=1, execution_time=1.0,
-            output="", error_output="", metadata={}
+            command="test",
+            source="/test",
+            command_type="test",
+            status="Failed",
+            return_code=1,
+            execution_time=1.0,
+            output="",
+            error_output="",
+            metadata={},
         )
 
         responses.add(
             responses.GET,
             "https://api.github.com/repos/test_owner/test_repo/issues",
-            json=[
-                {
-                    "id": 1,
-                    "title": "Different issue title",
-                    "state": "open"
-                }
-            ],
-            status=200
+            json=[{"id": 1, "title": "Different issue title", "state": "open"}],
+            status=200,
         )
 
         existing = self.client.check_existing_issue(command)
@@ -384,18 +377,32 @@ class TestGitHubClient:
         """Test bulk tworzenia issues w trybie dry run."""
         commands = [
             FailedCommand(
-                title="Test 1", command="test1", source="/test", command_type="test",
-                status="Failed", return_code=1, execution_time=1.0,
-                output="", error_output="", metadata={}
+                title="Test 1",
+                command="test1",
+                source="/test",
+                command_type="test",
+                status="Failed",
+                return_code=1,
+                execution_time=1.0,
+                output="",
+                error_output="",
+                metadata={},
             ),
             FailedCommand(
-                title="Test 2", command="test2", source="/test", command_type="test",
-                status="Failed", return_code=2, execution_time=2.0,
-                output="", error_output="", metadata={}
+                title="Test 2",
+                command="test2",
+                source="/test",
+                command_type="test",
+                status="Failed",
+                return_code=2,
+                execution_time=2.0,
+                output="",
+                error_output="",
+                metadata={},
             ),
         ]
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print") as mock_print:
             result = self.client.bulk_create_issues(commands, dry_run=True)
 
             assert result == []  # Dry run nie tworzy issues
@@ -419,20 +426,18 @@ def sample_failed_command():
         execution_time=1.47,
         output="make[1]: Entering directory",
         error_output="poetry.lock changed significantly",
-        metadata={"target": "install"}
+        metadata={"target": "install"},
     )
 
 
 def test_github_config_properties():
     """Test właściwości GitHubConfig."""
-    config = GitHubConfig(
-        token="test_token",
-        owner="test_owner",
-        repo="test_repo"
-    )
+    config = GitHubConfig(token="test_token", owner="test_owner", repo="test_repo")
 
     assert config.repo_url == "test_owner/test_repo"
-    assert config.issues_url == "https://api.github.com/repos/test_owner/test_repo/issues"
+    assert (
+        config.issues_url == "https://api.github.com/repos/test_owner/test_repo/issues"
+    )
 
 
 def test_issue_data_to_dict():
@@ -442,7 +447,7 @@ def test_issue_data_to_dict():
         body="Test body",
         labels=["bug", "enhancement"],
         assignees=["user1", "user2"],
-        milestone=5
+        milestone=5,
     )
 
     result = issue_data.to_dict()
@@ -453,7 +458,7 @@ def test_issue_data_to_dict():
         "labels": ["bug", "enhancement"],
         "assignees": ["user1", "user2"],
         "milestone": 5,
-        "state": "open"
+        "state": "open",
     }
 
     assert result == expected
@@ -461,11 +466,7 @@ def test_issue_data_to_dict():
 
 def test_issue_data_to_dict_minimal():
     """Test konwersji IssueData do dict - minimalne dane."""
-    issue_data = IssueData(
-        title="Test Issue",
-        body="Test body",
-        labels=["bug"]
-    )
+    issue_data = IssueData(title="Test Issue", body="Test body", labels=["bug"])
 
     result = issue_data.to_dict()
 
@@ -474,7 +475,7 @@ def test_issue_data_to_dict_minimal():
         "body": "Test body",
         "labels": ["bug"],
         "assignees": [],
-        "state": "open"
+        "state": "open",
     }
 
     assert result == expected

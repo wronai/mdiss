@@ -2,10 +2,10 @@
 XML parsers for test reports and build outputs.
 """
 
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import List, Dict, Optional
-import re
+from typing import Dict, List, Optional
 
 from ..models import FailedCommand
 
@@ -14,15 +14,11 @@ class XMLTestParser:
     """Base parser for XML test reports."""
 
     def __init__(self):
-        self.supported_formats = [
-            "junit",
-            "testng",
-            "nunit",
-            "xunit",
-            "generic"
-        ]
+        self.supported_formats = ["junit", "testng", "nunit", "xunit", "generic"]
 
-    def parse_file(self, file_path: str, format_type: str = "auto") -> List[FailedCommand]:
+    def parse_file(
+        self, file_path: str, format_type: str = "auto"
+    ) -> List[FailedCommand]:
         """
         Parse XML test report file.
 
@@ -58,12 +54,17 @@ class XMLTestParser:
             return "testng"
         elif root_tag == "test-run" or "nunit" in root.attrib.get("name", "").lower():
             return "nunit"
-        elif root_tag == "assemblies" or "xunit" in str(ET.tostring(root, encoding='unicode')).lower():
+        elif (
+            root_tag == "assemblies"
+            or "xunit" in str(ET.tostring(root, encoding="unicode")).lower()
+        ):
             return "xunit"
 
         return "generic"
 
-    def _parse_by_format(self, root: ET.Element, format_type: str, source: str) -> List[FailedCommand]:
+    def _parse_by_format(
+        self, root: ET.Element, format_type: str, source: str
+    ) -> List[FailedCommand]:
         """Parse XML by detected format."""
         parsers = {
             "junit": JUnitParser(),
@@ -96,7 +97,9 @@ class JUnitParser:
 
         return commands
 
-    def _parse_testsuite(self, testsuite: ET.Element, source: str) -> List[FailedCommand]:
+    def _parse_testsuite(
+        self, testsuite: ET.Element, source: str
+    ) -> List[FailedCommand]:
         """Parse a single test suite."""
         commands = []
         suite_name = testsuite.get("name", "Unknown Suite")
@@ -105,7 +108,9 @@ class JUnitParser:
         testcases = testsuite.findall("testcase")
         for testcase in testcases:
             if self._is_failed_testcase(testcase):
-                command = self._create_command_from_testcase(testcase, suite_name, source)
+                command = self._create_command_from_testcase(
+                    testcase, suite_name, source
+                )
                 commands.append(command)
 
         return commands
@@ -117,7 +122,9 @@ class JUnitParser:
         error = testcase.find("error")
         return failure is not None or error is not None
 
-    def _create_command_from_testcase(self, testcase: ET.Element, suite_name: str, source: str) -> FailedCommand:
+    def _create_command_from_testcase(
+        self, testcase: ET.Element, suite_name: str, source: str
+    ) -> FailedCommand:
         """Create FailedCommand from failed test case."""
         test_name = testcase.get("name", "Unknown Test")
         class_name = testcase.get("classname", suite_name)

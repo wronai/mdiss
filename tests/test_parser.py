@@ -2,11 +2,12 @@
 Testy dla MarkdownParser.
 """
 
-import pytest
 from pathlib import Path
 
-from mdiss.parser import MarkdownParser
+import pytest
+
 from mdiss.models import FailedCommand
+from mdiss.parser import MarkdownParser
 
 
 class TestMarkdownParser:
@@ -51,20 +52,20 @@ pyproject.toml changed significantly since poetry.lock was last generated.
 """
 
         blocks = self.parser.parse_content(content)
-        
+
         # Should find 2 code blocks (output and error output)
         assert len(blocks) == 2
-        
+
         # First block should be the output
         output_block = blocks[0]
-        assert 'make[1]: Entering directory' in output_block['code_block']
-        assert 'poetry install' in output_block['code_block']
-        assert output_block['file'] is None
-        
+        assert "make[1]: Entering directory" in output_block["code_block"]
+        assert "poetry install" in output_block["code_block"]
+        assert output_block["file"] is None
+
         # Second block should be the error output
         error_block = blocks[1]
-        assert 'pyproject.toml changed' in error_block['code_block']
-        assert error_block['file'] is None
+        assert "pyproject.toml changed" in error_block["code_block"]
+        assert error_block["file"] is None
 
     def test_parse_timeout_command(self):
         """Test parsing a command with timeout."""
@@ -97,16 +98,16 @@ Process killed due to timeout
         blocks = self.parser.parse_content(content)
         # Should find 2 code blocks (output and error output)
         assert len(blocks) == 2
-        
+
         # First block should be the output
         output_block = blocks[0]
-        assert 'Starting process' in output_block['code_block']
-        assert output_block['file'] is None
-        
+        assert "Starting process" in output_block["code_block"]
+        assert output_block["file"] is None
+
         # Second block should be the error output
         error_block = blocks[1]
-        assert 'Process killed due to timeout' in error_block['code_block']
-        assert error_block['file'] is None
+        assert "Process killed due to timeout" in error_block["code_block"]
+        assert error_block["file"] is None
 
     def test_parse_multiple_commands(self):
         """Test parsing multiple commands."""
@@ -162,22 +163,22 @@ error2
         blocks = self.parser.parse_content(content)
         # Should find 4 code blocks (output and error output for each command)
         assert len(blocks) == 4
-        
+
         # First command output
-        assert 'output1' in blocks[0]['code_block']
-        assert blocks[0]['file'] is None
-        
+        assert "output1" in blocks[0]["code_block"]
+        assert blocks[0]["file"] is None
+
         # First command error output
-        assert 'error1' in blocks[1]['code_block']
-        assert blocks[1]['file'] is None
-        
+        assert "error1" in blocks[1]["code_block"]
+        assert blocks[1]["file"] is None
+
         # Second command output
-        assert 'output2' in blocks[2]['code_block']
-        assert blocks[2]['file'] is None
-        
+        assert "output2" in blocks[2]["code_block"]
+        assert blocks[2]["file"] is None
+
         # Second command error output
-        assert 'error2' in blocks[3]['code_block']
-        assert blocks[3]['file'] is None
+        assert "error2" in blocks[3]["code_block"]
+        assert blocks[3]["file"] is None
 
     def test_parse_invalid_return_code(self):
         """Test parsing with invalid return code."""
@@ -209,14 +210,14 @@ error
         blocks = self.parser.parse_content(content)
         # Should find 2 code blocks (output and error output)
         assert len(blocks) == 2
-        
+
         # First block should be the output
-        assert 'output' in blocks[0]['code_block']
-        assert blocks[0]['file'] is None
-        
+        assert "output" in blocks[0]["code_block"]
+        assert blocks[0]["file"] is None
+
         # Second block should be the error output
-        assert 'error' in blocks[1]['code_block']
-        assert blocks[1]['file'] is None
+        assert "error" in blocks[1]["code_block"]
+        assert blocks[1]["file"] is None
 
     def test_parse_invalid_execution_time(self):
         """Test parsing with invalid execution time."""
@@ -247,14 +248,14 @@ error
         blocks = self.parser.parse_content(content)
         # Should find 2 code blocks (output and error output)
         assert len(blocks) == 2
-        
+
         # First block should be the output
-        assert 'output' in blocks[0]['code_block']
-        assert blocks[0]['file'] is None
-        
+        assert "output" in blocks[0]["code_block"]
+        assert blocks[0]["file"] is None
+
         # Second block should be the error output
-        assert 'error' in blocks[1]['code_block']
-        assert blocks[1]['file'] is None
+        assert "error" in blocks[1]["code_block"]
+        assert blocks[1]["file"] is None
 
     def test_clean_status(self):
         """Test status cleaning from emojis."""
@@ -283,35 +284,26 @@ error
         """Test statistics for empty list."""
         stats = self.parser.get_statistics([])
         assert stats == {
-            'total_commands': 0,
-            'failed_commands': 0,
-            'success_rate': 1.0,
-            'error_codes': {},
-            'command_types': {}
+            "total_commands": 0,
+            "failed_commands": 0,
+            "success_rate": 1.0,
+            "error_codes": {},
+            "command_types": {},
         }
 
     def test_get_statistics(self):
         """Test generating statistics."""
         commands = [
-            {
-                'exit_code': 2,
-                'metadata': {'command_type': 'make_target'}
-            },
-            {
-                'exit_code': 1,
-                'metadata': {'command_type': 'npm_script'}
-            },
-            {
-                'exit_code': 0,
-                'metadata': {'command_type': 'make_target'}
-            },
+            {"exit_code": 2, "metadata": {"command_type": "make_target"}},
+            {"exit_code": 1, "metadata": {"command_type": "npm_script"}},
+            {"exit_code": 0, "metadata": {"command_type": "make_target"}},
         ]
 
         stats = self.parser.get_statistics(commands)
 
         assert stats["total_commands"] == 3
         assert stats["failed_commands"] == 2
-        assert stats["success_rate"] == 1/3
+        assert stats["success_rate"] == 1 / 3
         assert stats["error_codes"] == {2: 1, 1: 1, 0: 1}
         assert stats["command_types"] == {"make_target": 2, "npm_script": 1}
 
@@ -357,13 +349,13 @@ def test_parse_file_integration(sample_markdown_file):
 
     # Should find 2 code blocks (output and error output)
     assert len(blocks) == 2
-    
+
     # First block should be the output
     output_block = blocks[0]
-    assert 'make[1]: Entering directory' in output_block['code_block']
-    assert output_block['file'] == str(sample_markdown_file)
-    
+    assert "make[1]: Entering directory" in output_block["code_block"]
+    assert output_block["file"] == str(sample_markdown_file)
+
     # Second block should be the error output
     error_block = blocks[1]
-    assert 'poetry.lock error' in error_block['code_block']
-    assert error_block['file'] == str(sample_markdown_file)
+    assert "poetry.lock error" in error_block["code_block"]
+    assert error_block["file"] == str(sample_markdown_file)

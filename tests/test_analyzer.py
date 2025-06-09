@@ -3,8 +3,9 @@ Testy dla ErrorAnalyzer.
 """
 
 import pytest
+
 from mdiss.analyzer import ErrorAnalyzer
-from mdiss.models import FailedCommand, Priority, Category
+from mdiss.models import Category, FailedCommand, Priority
 
 
 class TestErrorAnalyzer:
@@ -26,7 +27,7 @@ class TestErrorAnalyzer:
             execution_time=1.5,
             output="",
             error_output="pyproject.toml changed significantly since poetry.lock was last generated",
-            metadata={}
+            metadata={},
         )
 
         result = self.analyzer.analyze(command)
@@ -48,7 +49,7 @@ class TestErrorAnalyzer:
             execution_time=60.0,
             output="",
             error_output="Command timed out after 60 seconds",
-            metadata={}
+            metadata={},
         )
 
         result = self.analyzer.analyze(command)
@@ -70,14 +71,17 @@ class TestErrorAnalyzer:
             execution_time=2.0,
             output="",
             error_output="ENOENT: no such file or directory, open '/test/package.json'",
-            metadata={}
+            metadata={},
         )
 
         result = self.analyzer.analyze(command)
 
         assert result.priority == Priority.MEDIUM
         assert result.category == Category.MISSING_FILES
-        assert "not found" in result.root_cause.lower() or "enoent" in result.root_cause.lower()
+        assert (
+            "not found" in result.root_cause.lower()
+            or "enoent" in result.root_cause.lower()
+        )
 
     def test_analyze_permission_error(self):
         """Test analizy błędu uprawnień."""
@@ -91,7 +95,7 @@ class TestErrorAnalyzer:
             execution_time=1.0,
             output="",
             error_output="Can not perform a '--user' install. User site-packages are not visible in this virtualenv.",
-            metadata={}
+            metadata={},
         )
 
         result = self.analyzer.analyze(command)
@@ -113,7 +117,7 @@ class TestErrorAnalyzer:
             execution_time=0.5,
             output="",
             error_output="could not determine a constructor for the tag 'tag:yaml.org,2002:python/name:materialx.emoji.twemoji'",
-            metadata={}
+            metadata={},
         )
 
         result = self.analyzer.analyze(command)
@@ -134,7 +138,7 @@ class TestErrorAnalyzer:
             execution_time=0.1,
             output="",
             error_output="Segmentation fault (core dumped)",
-            metadata={}
+            metadata={},
         )
 
         result = self.analyzer.analyze(command)
@@ -154,7 +158,7 @@ class TestErrorAnalyzer:
             execution_time=5.0,
             output="",
             error_output="compilation failed with unknown error",
-            metadata={}
+            metadata={},
         )
 
         result = self.analyzer.analyze(command)
@@ -166,25 +170,46 @@ class TestErrorAnalyzer:
         """Test reguł określania priorytetu."""
         # Timeout command
         timeout_cmd = FailedCommand(
-            title="Timeout", command="test", source="/test", command_type="test",
-            status="Failed", return_code=-1, execution_time=60.0,
-            output="", error_output="timeout", metadata={}
+            title="Timeout",
+            command="test",
+            source="/test",
+            command_type="test",
+            status="Failed",
+            return_code=-1,
+            execution_time=60.0,
+            output="",
+            error_output="timeout",
+            metadata={},
         )
         assert self.analyzer._determine_priority(timeout_cmd) == Priority.HIGH
 
         # Poetry lock issue
         poetry_cmd = FailedCommand(
-            title="Poetry", command="poetry install", source="/test", command_type="poetry",
-            status="Failed", return_code=1, execution_time=1.0,
-            output="", error_output="poetry.lock file issue", metadata={}
+            title="Poetry",
+            command="poetry install",
+            source="/test",
+            command_type="poetry",
+            status="Failed",
+            return_code=1,
+            execution_time=1.0,
+            output="",
+            error_output="poetry.lock file issue",
+            metadata={},
         )
         assert self.analyzer._determine_priority(poetry_cmd) == Priority.HIGH
 
         # Standard error
         standard_cmd = FailedCommand(
-            title="Standard", command="make", source="/test", command_type="make",
-            status="Failed", return_code=2, execution_time=1.0,
-            output="", error_output="standard error", metadata={}
+            title="Standard",
+            command="make",
+            source="/test",
+            command_type="make",
+            status="Failed",
+            return_code=2,
+            execution_time=1.0,
+            output="",
+            error_output="standard error",
+            metadata={},
         )
         assert self.analyzer._determine_priority(standard_cmd) == Priority.MEDIUM
 
@@ -202,9 +227,16 @@ class TestErrorAnalyzer:
 
         for error_text, expected_category in test_cases:
             cmd = FailedCommand(
-                title="Test", command="test", source="/test", command_type="test",
-                status="Failed", return_code=1, execution_time=1.0,
-                output="", error_output=error_text, metadata={}
+                title="Test",
+                command="test",
+                source="/test",
+                command_type="test",
+                status="Failed",
+                return_code=1,
+                execution_time=1.0,
+                output="",
+                error_output=error_text,
+                metadata={},
             )
             assert self.analyzer._determine_category(cmd) == expected_category
 
@@ -212,18 +244,32 @@ class TestErrorAnalyzer:
         """Test obliczania poziomu pewności."""
         # High confidence - clear pattern
         high_confidence_cmd = FailedCommand(
-            title="Poetry", command="poetry install", source="/test", command_type="poetry",
-            status="Failed", return_code=1, execution_time=1.0,
-            output="", error_output="poetry.lock file needs update", metadata={}
+            title="Poetry",
+            command="poetry install",
+            source="/test",
+            command_type="poetry",
+            status="Failed",
+            return_code=1,
+            execution_time=1.0,
+            output="",
+            error_output="poetry.lock file needs update",
+            metadata={},
         )
         result = self.analyzer.analyze(high_confidence_cmd)
         assert result.confidence > 0.7
 
         # Low confidence - unclear pattern
         low_confidence_cmd = FailedCommand(
-            title="Unknown", command="unknown_command", source="/test", command_type="unknown",
-            status="Failed", return_code=1, execution_time=1.0,
-            output="", error_output="some unknown error occurred", metadata={}
+            title="Unknown",
+            command="unknown_command",
+            source="/test",
+            command_type="unknown",
+            status="Failed",
+            return_code=1,
+            execution_time=1.0,
+            output="",
+            error_output="some unknown error occurred",
+            metadata={},
         )
         result = self.analyzer.analyze(low_confidence_cmd)
         assert result.confidence <= 0.7
@@ -232,19 +278,40 @@ class TestErrorAnalyzer:
         """Test statystyk kategorii."""
         commands = [
             FailedCommand(
-                title="Poetry", command="poetry install", source="/test", command_type="poetry",
-                status="Failed", return_code=1, execution_time=1.0,
-                output="", error_output="poetry.lock issue", metadata={}
+                title="Poetry",
+                command="poetry install",
+                source="/test",
+                command_type="poetry",
+                status="Failed",
+                return_code=1,
+                execution_time=1.0,
+                output="",
+                error_output="poetry.lock issue",
+                metadata={},
             ),
             FailedCommand(
-                title="NPM", command="npm test", source="/test", command_type="npm",
-                status="Failed", return_code=1, execution_time=1.0,
-                output="", error_output="file not found", metadata={}
+                title="NPM",
+                command="npm test",
+                source="/test",
+                command_type="npm",
+                status="Failed",
+                return_code=1,
+                execution_time=1.0,
+                output="",
+                error_output="file not found",
+                metadata={},
             ),
             FailedCommand(
-                title="Poetry2", command="poetry update", source="/test", command_type="poetry",
-                status="Failed", return_code=1, execution_time=1.0,
-                output="", error_output="pyproject.toml changed", metadata={}
+                title="Poetry2",
+                command="poetry update",
+                source="/test",
+                command_type="poetry",
+                status="Failed",
+                return_code=1,
+                execution_time=1.0,
+                output="",
+                error_output="pyproject.toml changed",
+                metadata={},
             ),
         ]
 
@@ -269,9 +336,16 @@ class TestErrorAnalyzer:
     def test_to_labels(self):
         """Test konwersji wyniku analizy do labeli."""
         command = FailedCommand(
-            title="Test", command="test", source="/test", command_type="test",
-            status="Failed", return_code=1, execution_time=1.0,
-            output="", error_output="poetry.lock issue", metadata={}
+            title="Test",
+            command="test",
+            source="/test",
+            command_type="test",
+            status="Failed",
+            return_code=1,
+            execution_time=1.0,
+            output="",
+            error_output="poetry.lock issue",
+            metadata={},
         )
 
         result = self.analyzer.analyze(command)
