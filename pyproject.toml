@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mdiss"
-version = "1.0.61"
+version = "1.0.62"
 description = "Automatyczne generowanie ticketów GitHub na podstawie plików markdown z błędami poleceń"
 authors = ["Tom Sapletta <info@softreck.dev>"]
 maintainers = ["WRONAI Team"]
@@ -8,7 +8,7 @@ license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://github.com/wronai/mdiss"
 documentation = "https://wronai.github.io/mdiss"
-repository = "https://github.com/wronai/domd.git"
+repository = "https://github.com/wronai/mdiss.git"
 keywords = ["github", "issues", "automation", "markdown", "ci", "build"]
 classifiers = [
     "Development Status :: 4 - Beta",

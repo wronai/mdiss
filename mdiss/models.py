@@ -20,29 +20,39 @@ class Category(str, Enum):
     NETWORK = "network"
     SYNTAX = "syntax"
     DEPENDENCY = "dependency"
+    DEPENDENCIES = "dependencies"  # Alias for backward compatibility
     TIMEOUT = "timeout"
     RESOURCE = "resource"
+    BUILD_FAILURE = "build_failure"
     UNKNOWN = "unknown"
 
 
 class FailedCommand(BaseModel):
     """Model representing a failed command."""
+    title: str = Field(..., description="Title of the failed command")
     command: str = Field(..., description="The command that failed")
-    output: str = Field(..., description="The command output (stderr or stdout)")
-    exit_code: int = Field(..., description="The exit code of the command")
-    is_timeout: bool = Field(False, description="Whether the command timed out")
+    source: str = Field(..., description="Source file or context of the command")
+    command_type: str = Field(..., description="Type of the command")
+    status: str = Field(..., description="Status of the command (e.g., 'Failed')")
+    return_code: int = Field(..., description="The return code of the command")
+    execution_time: float = Field(..., description="Execution time in seconds")
+    output: str = Field(default="", description="Standard output of the command")
+    error_output: str = Field(default="", description="Error output of the command")
     metadata: Dict[str, Any] = Field(
-        default_factory=dict, 
+        default_factory=dict,
         description="Additional metadata about the command"
     )
-    file_path: Optional[str] = Field(
-        None, 
-        description="Path to the file where the command was found"
-    )
-    line_number: Optional[int] = Field(
-        None, 
-        description="Line number where the command was found"
-    )
+    
+    # Backward compatibility with exit_code alias
+    @property
+    def exit_code(self) -> int:
+        """Alias for return_code for backward compatibility."""
+        return self.return_code
+        
+    @property
+    def is_timeout(self) -> bool:
+        """Check if the command failed due to a timeout."""
+        return self.return_code == -1 and "timeout" in self.status.lower()
 
 
 class AnalysisResult(BaseModel):
