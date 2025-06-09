@@ -55,6 +55,7 @@ clean: ## Wyczyść pliki tymczasowe
 	find . -name "*.pyc" -delete
 
 build: clean ## Zbuduj pakiet
+	poetry version patch
 	poetry build
 
 publish-test: build ## Opublikuj na TestPyPI
@@ -125,11 +126,12 @@ validate: ## Waliduj konfigurację projektu
 benchmark: ## Uruchom testy wydajności
 	poetry run python -m pytest tests/ -m "slow" --benchmark-only
 
-all: clean install dev lint test build ## Wykonaj pełny workflow
+all: clean install dev lint test build publish ## Wykonaj pełny workflow
 
 # Aliases
 t: test
 l: lint
 f: format
 b: build
+p: publish
 h: help

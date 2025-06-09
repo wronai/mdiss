@@ -1,0 +1,184 @@
+{
+  "github_repo": {
+    "id": 123456789,
+    "name": "test_repo",
+    "full_name": "test_owner/test_repo",
+    "description": "Test repository for mdiss",
+    "private": false,
+    "html_url": "https://github.com/test_owner/test_repo",
+    "clone_url": "https://github.com/test_owner/test_repo.git",
+    "ssh_url": "git@github.com:test_owner/test_repo.git",
+    "default_branch": "main",
+    "language": "Python",
+    "stargazers_count": 42,
+    "watchers_count": 42,
+    "forks_count": 5,
+    "open_issues_count": 3,
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-06-01T12:00:00Z",
+    "pushed_at": "2023-06-01T12:00:00Z"
+  },
+
+  "github_issue_created": {
+    "id": 987654321,
+    "number": 42,
+    "title": "Fix failed command: Make target: install",
+    "body": "## Problem Description\nCommand `make install` is failing consistently.\n\n**Priority**: HIGH\n**Category**: dependencies\n**Confidence**: 90%\n\n### Command Details\n- **Command**: `make install`\n- **Source**: /home/test/Makefile\n- **Type**: make_target\n- **Return Code**: 2\n- **Execution Time**: 1.47s\n\n### Error Analysis\n🔍 **Root Cause**: Poetry lock file is out of sync with pyproject.toml...",
+    "state": "open",
+    "html_url": "https://github.com/test_owner/test_repo/issues/42",
+    "user": {
+      "login": "test_user",
+      "id": 12345,
+      "avatar_url": "https://github.com/images/error/test_user_happy.gif",
+      "html_url": "https://github.com/test_user"
+    },
+    "labels": [
+      {
+        "id": 1,
+        "name": "bug",
+        "color": "d73a4a",
+        "description": "Something isn't working"
+      },
+      {
+        "id": 2,
+        "name": "high",
+        "color": "d93f0b",
+        "description": "High priority"
+      },
+      {
+        "id": 3,
+        "name": "dependencies",
+        "color": "0366d6",
+        "description": "Pull requests that update a dependency file"
+      },
+      {
+        "id": 4,
+        "name": "make_target",
+        "color": "7057ff",
+        "description": "Makefile target"
+      }
+    ],
+    "assignees": [],
+    "milestone": null,
+    "comments": 0,
+    "created_at": "2023-06-09T14:30:00Z",
+    "updated_at": "2023-06-09T14:30:00Z",
+    "closed_at": null
+  },
+
+  "github_issues_list": [
+    {
+      "id": 987654321,
+      "number": 42,
+      "title": "Fix failed command: Make target: install",
+      "state": "open",
+      "html_url": "https://github.com/test_owner/test_repo/issues/42",
+      "labels": [
+        {"name": "bug"},
+        {"name": "high"},
+        {"name": "dependencies"}
+      ],
+      "created_at": "2023-06-09T14:30:00Z"
+    },
+    {
+      "id": 987654322,
+      "number": 43,
+      "title": "Fix failed command: NPM script: test",
+      "state": "open",
+      "html_url": "https://github.com/test_owner/test_repo/issues/43",
+      "labels": [
+        {"name": "bug"},
+        {"name": "medium"},
+        {"name": "missing-files"}
+      ],
+      "created_at": "2023-06-09T14:31:00Z"
+    },
+    {
+      "id": 987654323,
+      "number": 44,
+      "title": "Fix failed command: Test timeout",
+      "state": "closed",
+      "html_url": "https://github.com/test_owner/test_repo/issues/44",
+      "labels": [
+        {"name": "bug"},
+        {"name": "high"},
+        {"name": "timeout"}
+      ],
+      "created_at": "2023-06-08T10:00:00Z"
+    }
+  ],
+
+  "github_api_errors": {
+    "unauthorized": {
+      "message": "Bad credentials",
+      "documentation_url": "https://docs.github.com/rest"
+    },
+    "not_found": {
+      "message": "Not Found",
+      "documentation_url": "https://docs.github.com/rest/reference/repos#get-a-repository"
+    },
+    "validation_failed": {
+      "message": "Validation Failed",
+      "errors": [
+        {
+          "resource": "Issue",
+          "field": "title",
+          "code": "missing_field"
+        }
+      ],
+      "documentation_url": "https://docs.github.com/rest/reference/issues#create-an-issue"
+    },
+    "rate_limit_exceeded": {
+      "message": "API rate limit exceeded for user ID 12345.",
+      "documentation_url": "https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"
+    }
+  },
+
+  "analysis_results": {
+    "poetry_dependency_issue": {
+      "priority": "high",
+      "category": "dependencies",
+      "root_cause": "Poetry lock file is out of sync with pyproject.toml. This typically happens when dependencies were modified without updating the lock file.",
+      "suggested_solution": "1. Run `poetry lock` to regenerate the lock file\n2. Run `poetry install` to install dependencies\n3. Commit the updated poetry.lock file",
+      "confidence": 0.95
+    },
+    "npm_missing_file": {
+      "priority": "medium",
+      "category": "missing-files",
+      "root_cause": "NPM command executed from wrong directory. Package.json not found in current path.",
+      "suggested_solution": "1. Verify the current working directory\n2. Ensure package.json exists in the project root\n3. Update the command to use correct path",
+      "confidence": 0.85
+    },
+    "timeout_error": {
+      "priority": "high",
+      "category": "timeout",
+      "root_cause": "Command execution timeout. Process was terminated after exceeding time limit.",
+      "suggested_solution": "1. Investigate why command is hanging\n2. Add timeout handling or increase timeout limit\n3. Check for interactive prompts that might cause hanging",
+      "confidence": 0.90
+    }
+  },
+
+  "parser_statistics": {
+    "total_commands": 84,
+    "command_types": {
+      "make_target": 45,
+      "npm_script": 25,
+      "docker": 8,
+      "python": 4,
+      "ansible": 2
+    },
+    "return_codes": {
+      "2": 35,
+      "1": 28,
+      "254": 12,
+      "-1": 6,
+      "139": 2,
+      "127": 1
+    },
+    "average_execution_time": 8.5,
+    "timeout_count": 6,
+    "critical_count": 2,
+    "most_common_type": "make_target",
+    "most_common_return_code": 2
+  }
+}

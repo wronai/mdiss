@@ -1,0 +1,112 @@
+site_name: mdiss - Markdown Issues
+site_url: https://wronai.github.io/mdiss
+site_description: Automatyczne generowanie ticketów GitHub na podstawie plików markdown z błędami poleceń
+site_author: Tom Sapletta, WRONAI Team
+
+repo_name: wronai/mdiss
+repo_url: https://github.com/wronai/mdiss
+edit_uri: edit/main/docs/
+
+nav:
+  - Home: index.md
+  - User Guide:
+    - Installation: installation.md
+    - Quick Start: quickstart.md
+    - CLI Reference: cli.md
+    - Configuration: configuration.md
+  - Developer Guide:
+    - API Reference: api.md
+    - Contributing: contributing.md
+    - Development: development.md
+  - Examples:
+    - Basic Usage: examples/basic.md
+    - Advanced Usage: examples/advanced.md
+    - CI/CD Integration: examples/cicd.md
+  - Changelog: changelog.md
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: blue
+      accent: orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.action.edit
+    - content.action.view
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search:
+      lang: en
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_members_full_path: false
+            merge_init_into_class: true
+            separate_signature: true
+            show_signature_annotations: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/wronai/mdiss
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/mdiss/
+  analytics:
+    provider: google
+    property: G-XXXXXXXXXX  # Replace with actual GA property
+
+copyright: Copyright &copy; 2025 Tom Sapletta, WRONAI Team
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/extra.js

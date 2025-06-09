@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mdiss"
-version = "1.0.60"
+version = "1.0.61"
 description = "Automatyczne generowanie ticketów GitHub na podstawie plików markdown z błędami poleceń"
 authors = ["Tom Sapletta <info@softreck.dev>"]
 maintainers = ["WRONAI Team"]

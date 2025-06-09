@@ -244,14 +244,15 @@ class ErrorAnalyzer:
             stats[category] = stats.get(category, 0) + 1
 
         return stats
-        rule in self.priority_rules:
-        if rule["condition"](command):
-            return rule["priority"]
 
-    return Priority.LOW
+    def _determine_priority(self, command: FailedCommand) -> Priority:
+        """Określa priorytet błędu."""
+        for rule in self.priority_rules:
+            if rule["condition"](command):
+                return rule["priority"]
+        return Priority.LOW
 
-
-def _determine_category(self, command: FailedCommand) -> Category:
+    def _determine_category(self, command: FailedCommand) -> Category:
     """Określa kategorię błędu."""
     error_text = command.error_output.lower()
 
