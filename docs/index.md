@@ -1,9 +1,10 @@
 # mdiss - Markdown Issues
 
-[![PyPI version](https://badge.fury.io/py/mdiss.svg)](https://badge.fury.io/py/mdiss)
-[![Python Version](https://img.shields.io/pypi/pyversions/mdiss.svg)](https://pypi.org/project/mdiss/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Tests](https://github.com/wronai/mdiss/workflows/Tests/badge.svg)](https://github.com/wronai/mdiss/actions)
+[![PyPI version](https://img.shields.io/pypi/v/mdiss.svg?style=for-the-badge&color=blue)](https://pypi.org/project/mdiss/)
+[![Python Version](https://img.shields.io/pypi/pyversions/mdiss.svg?style=for-the-badge)](https://pypi.org/project/mdiss/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
+[![Tests](https://img.shields.io/github/actions/workflow/status/wronai/mdiss/ci.yml?branch=main&label=Tests&style=for-the-badge)](https://github.com/wronai/mdiss/actions)
+[![Coverage](https://img.shields.io/codecov/c/github/wronai/mdiss?style=for-the-badge&token=YOUR-TOKEN-HERE)](https://codecov.io/gh/wronai/mdiss)
 
 **Automatyczne generowanie ticketów GitHub na podstawie plików markdown z błędami poleceń.**
 
