@@ -375,6 +375,24 @@ def _show_dry_run_preview(commands, client):
 
     analyzer = ErrorAnalyzer()
 
+    # Debug: Print the raw command data
+    print("\n[DEBUG] ===== RAW COMMAND DATA =====")
+    for i, cmd in enumerate(commands, 1):
+        print(f"\n[DEBUG] Command {i}:")
+        if hasattr(cmd, "__dict__"):
+            # It's a FailedCommand object
+            print("[DEBUG] Type: FailedCommand object")
+            for key, value in cmd.__dict__.items():
+                print(f"  {key}: {value!r}")
+        elif isinstance(cmd, dict):
+            # It's a dictionary
+            print("[DEBUG] Type: Dictionary")
+            for key, value in cmd.items():
+                print(f"  {key}: {value!r}")
+        else:
+            print(f"[DEBUG] Unknown command type: {type(cmd)}")
+    print("[DEBUG] =============================")
+
     console.print("\n🧪 [bold yellow]DRY RUN MODE - PODGLĄD ZGŁOSZEŃ[/bold yellow]")
     console.print("=" * 60)
 
@@ -504,10 +522,8 @@ def _show_dry_run_preview(commands, client):
         solution_section = ""
         if analysis.suggested_solution:
             solution_section = f"""## 💡 Suggested Solution
-{solution}
-""".format(
-                solution=analysis.suggested_solution.strip()
-            )
+{analysis.suggested_solution.strip()}
+"""
 
         # Format metadata in a clean, organized way
         metadata_section = f"""
@@ -515,27 +531,18 @@ def _show_dry_run_preview(commands, client):
 ### 📝 Metadata
 | Field | Value |
 |-------|-------|
-| **Source** | `{source}` |
-| **Exit Code** | `{return_code}` |
-| **Execution Time** | {exec_time:.2f}s |
-| **Category** | `{category}` |
-| **Priority** | `{priority}` |
-| **Status** | `{status}` |
+| **Source** | `{command.source}` |
+| **Exit Code** | `{command.return_code}` |
+| **Execution Time** | {command.execution_time:.2f}s |
+| **Category** | `{analysis.category.value}` |
+| **Priority** | `{analysis.priority.value.upper()}` |
+| **Status** | `{command.status}` |
 
 ### 🏷️ Labels
-- `priority:{priority_lower}`
-- `category:{category_lower}`
+- `priority:{analysis.priority.value.lower()}`
+- `category:{analysis.category.value.lower()}`
 - `bug`
-""".format(
-            source=command.source,
-            return_code=command.return_code,
-            exec_time=command.execution_time,
-            category=analysis.category.value,
-            priority=analysis.priority.value.upper(),
-            status=command.status,
-            priority_lower=analysis.priority.value.lower(),
-            category_lower=analysis.category.value.lower(),
-        )
+"""
 
         # Combine all sections
         issue_body = "\n".join(

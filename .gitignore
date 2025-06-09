@@ -3,6 +3,7 @@
 venv
 .coverage
 poetry.lock
+dist
 # Caddy data and config
 /data
 /config

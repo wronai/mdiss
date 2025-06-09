@@ -216,21 +216,98 @@ class GitHubClient:
         Raises:
             RequestException: If the request fails
         """
+        import json
+
+        from rich import print as rprint
+        from rich.panel import Panel
+        from rich.syntax import Syntax
+
         url = f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
+        headers = kwargs.pop("headers", {})
+        headers.update(self.session.headers)
+
+        # Add authentication if token is available
+        if self.token and "Authorization" not in headers:
+            headers["Authorization"] = f"token {self.token}"
+
+        # Prepare request data for debug output
+        debug_headers = headers.copy()
+        if "Authorization" in debug_headers:
+            debug_headers["Authorization"] = "token **********"  # Redact token
+
+        request_data = {
+            "method": method.upper(),
+            "url": url,
+            "headers": debug_headers,
+        }
+
+        # Add request body if present
+        if "json" in kwargs:
+            request_data["json"] = kwargs["json"]
+        if "data" in kwargs:
+            request_data["data"] = kwargs["data"]
+        if "params" in kwargs:
+            request_data["params"] = kwargs["params"]
+
+        # Print request debug info
+        rprint(
+            Panel(
+                Syntax(
+                    json.dumps(request_data, indent=2, ensure_ascii=False),
+                    "json",
+                    theme="monokai",
+                ),
+                title=f"[bold green]Sending {method.upper()} request to: {url}",
+                border_style="green",
+            )
+        )
 
         try:
-            response = self.session.request(method, url, **kwargs)
+            response = self.session.request(
+                method=method, url=url, headers=headers, **kwargs
+            )
+
+            # Print response debug info
+            try:
+                response_data = response.json()
+                rprint(
+                    Panel(
+                        Syntax(
+                            json.dumps(response_data, indent=2, ensure_ascii=False),
+                            "json",
+                            theme="monokai",
+                        ),
+                        title=f"[bold blue]Response: {response.status_code} {response.reason}",
+                        border_style="blue",
+                    )
+                )
+            except ValueError:
+                rprint(
+                    Panel(
+                        response.text,
+                        title=f"[bold blue]Response: {response.status_code} {response.reason}",
+                        border_style="blue",
+                    )
+                )
+
             response.raise_for_status()
-            return response.json() if response.content else {}
-        except RequestException as e:
-            error_msg = str(e)
+            return response_data if response.content else {}
+
+        except requests.exceptions.RequestException as e:
+            error_msg = f"GitHub API request failed: {str(e)}"
             if hasattr(e, "response") and e.response is not None:
+                error_msg += f"\nStatus Code: {e.response.status_code}"
                 try:
-                    error_details = e.response.json()
-                    error_msg = f"{e}: {error_details.get('message', 'Unknown error')}"
-                except ValueError:
-                    error_msg = f"{e}: {e.response.text}"
-            raise RequestException(f"GitHub API request failed: {error_msg}") from e
+                    error_msg += f"\nResponse: {e.response.text}"
+                except:
+                    pass
+
+            # Print error in red panel
+            rprint(
+                Panel(error_msg, title="[bold red]Request Failed", border_style="red")
+            )
+
+            raise RequestException(error_msg) from e
 
     def create_issue(
         self,
@@ -268,6 +345,7 @@ class GitHubClient:
         analysis: AnalysisResult,
         owner: Optional[str] = None,
         repo: Optional[str] = None,
+        dry_run: bool = False,
         **kwargs,
     ) -> Dict[str, Any]:
         """
@@ -278,26 +356,112 @@ class GitHubClient:
             analysis: Analysis of the failed command
             owner: Repository owner (optional if set in config)
             repo: Repository name (optional if set in config)
+            dry_run: If True, only show what would be done
             **kwargs: Additional issue parameters
 
         Returns:
             Created issue data
         """
+        import json
+
+        from rich import print as rprint
+        from rich.panel import Panel
+        from rich.syntax import Syntax
+        from rich.table import Table
+
         owner, repo = self._get_owner_repo(owner, repo)
 
-        title = f"Failed command: {failed_command.command[:100]}"
+        # Create a more descriptive title
+        title = f"Fix: {getattr(failed_command, 'title', 'Failed command')}"
+        if len(title) > 100:
+            title = title[:97] + "..."
+
+        # Debug: Print all available attributes of failed_command
+        rprint(
+            Panel.fit(
+                "[bold]Failed Command Attributes:[/]\n"
+                + "\n".join(
+                    f"- {attr}: {getattr(failed_command, attr, 'N/A')}"
+                    for attr in dir(failed_command)
+                    if not attr.startswith("_")
+                    and not callable(getattr(failed_command, attr))
+                ),
+                title="[bold]Debug: Failed Command Object",
+                border_style="red",
+            )
+        )
 
         # Format the issue body with markdown
-        body = (
-            f"## Failed Command\n"
-            f"```\n{failed_command.command}\n```\n\n"
-            f"## Error Output\n"
-            f"```\n{failed_command.output}\n```\n\n"
-            f"## Analysis\n"
-            f"- **Priority:** {analysis.priority.value}\n"
-            f"- **Category:** {analysis.category.value}\n"
-            f"- **Root Cause:** {analysis.root_cause or 'Unknown'}\n\n"
-            f"## Suggested Solution\n{analysis.suggested_solution or 'No specific solution provided.'}"
+        body_parts = []
+
+        # Debug: Show all available attributes
+        debug_info = [
+            "[bold]Available Attributes:[/]",
+            *[
+                f"- {attr}: {repr(getattr(failed_command, attr, 'N/A'))}"
+                for attr in dir(failed_command)
+                if not attr.startswith("_")
+                and not callable(getattr(failed_command, attr))
+            ],
+        ]
+
+        # Add command section
+        command = getattr(failed_command, "command", "")
+        if command and str(command).strip():
+            body_parts.extend(
+                ["## Failed Command", f"```bash\n{str(command).strip()}\n```"]
+            )
+
+        # Add error output if available
+        error_output = getattr(failed_command, "error_output", "")
+        error_output = str(error_output) if error_output is not None else ""
+        if error_output.strip():
+            body_parts.extend(
+                ["\n## Error Output", f"```\n{error_output.strip()}\n```"]
+            )
+
+        # Add standard output if available
+        output = getattr(failed_command, "output", "")
+        output = str(output) if output is not None else ""
+        if output.strip():
+            body_parts.extend(["\n## Output", f"```\n{output.strip()}\n```"])
+
+        # Add metadata section
+        metadata = [
+            ("Source", f"`{getattr(failed_command, 'source', 'N/A')}`"),
+            ("Exit Code", f"`{getattr(failed_command, 'return_code', 1)}`"),
+            ("Execution Time", f"{getattr(failed_command, 'execution_time', 0):.2f}s"),
+            ("Category", f"`{getattr(analysis, 'category', 'N/A')}`"),
+            (
+                "Priority",
+                f"`{getattr(getattr(analysis, 'priority', 'N/A'), 'value', 'N/A').upper()}`",
+            ),
+            ("Status", f"`{getattr(failed_command, 'status', 'Failed')}`"),
+        ]
+
+        metadata_section = ["\n## Metadata"]
+        for key, value in metadata:
+            metadata_section.append(f"- **{key}:** {value}")
+
+        body_parts.extend(metadata_section)
+
+        # Add suggested solution if available
+        suggested_solution = getattr(analysis, "suggested_solution", "")
+        suggested_solution = str(suggested_solution) if suggested_solution else ""
+        if suggested_solution.strip():
+            body_parts.extend(["\n## Suggested Solution", suggested_solution.strip()])
+
+        # Join all parts and clean up
+        body = "\n".join(part for part in body_parts if part.strip())
+        body = "\n".join(line for line in body.split("\n") if line.strip() != "")
+
+        # Debug: Show the final body before sending
+        rprint(
+            Panel.fit(
+                "[bold]Final Issue Body:[/]\n" + body,
+                title="[bold]Debug: Issue Body",
+                border_style="green",
+            )
         )
 
         # Create labels based on priority and category
@@ -314,9 +478,66 @@ class GitHubClient:
             else:
                 labels.extend(kwargs.pop("labels", []))
 
-        issue = GitHubIssue(title=title, body=body, labels=labels, **kwargs)
+        # Prepare the issue data
+        issue_data = {"title": title, "body": body, "labels": labels}
+        issue_data.update(kwargs)
 
-        return self.create_issue(owner, repo, issue)
+        if dry_run:
+            # Show the complete request that would be sent
+            request_info = {
+                "method": "POST",
+                "url": f"{self.base_url}/repos/{owner}/{repo}/issues",
+                "headers": {
+                    "Authorization": f"token {self.token[:8]}...",
+                    "Accept": "application/vnd.github.v3+json",
+                },
+                "json": issue_data,
+            }
+
+            rprint(
+                Panel(
+                    Syntax(
+                        json.dumps(request_info, indent=2, ensure_ascii=False),
+                        "json",
+                        theme="monokai",
+                    ),
+                    title="[bold red]REQUEST THAT WOULD BE SENT:[/]",
+                    border_style="red",
+                )
+            )
+            return {}
+
+        issue = GitHubIssue(**issue_data)
+
+        # Print issue details before creation
+        from rich.syntax import Syntax
+
+        rprint(
+            Panel.fit(
+                f"[bold]Creating GitHub Issue[/]\n"
+                f"[bold]Title:[/] {title}\n"
+                f"[bold]Labels:[/] {', '.join(labels)}\n"
+                f"[bold]Body:[/]\n" + Syntax(body, "markdown", theme="monokai"),
+                title="[bold]Creating GitHub Issue",
+                border_style="blue",
+            )
+        )
+
+        created_issue = self.create_issue(owner, repo, issue)
+
+        # Print created issue details
+        if created_issue:
+            rprint(
+                Panel.fit(
+                    f"[bold green]✅ Successfully created issue #{created_issue.get('number')}[/]\n"
+                    f"[bold]Title:[/] {created_issue.get('title')}\n"
+                    f"[bold]URL:[/] {created_issue.get('html_url')}",
+                    title="[bold]Issue Created Successfully",
+                    border_style="green",
+                )
+            )
+
+        return created_issue
 
     def get_issue(
         self, issue_number: int, owner: Optional[str] = None, repo: Optional[str] = None
@@ -525,28 +746,85 @@ class GitHubClient:
         Returns:
             List of created issues or issue data if dry_run
         """
+        import json
+
+        from rich import print as rprint
+        from rich.panel import Panel
+        from rich.syntax import Syntax
+
+        from .analyzer import ErrorAnalyzer
+
+        analyzer = ErrorAnalyzer()
         owner, repo = self._get_owner_repo(owner, repo)
         created_issues = []
 
         for cmd in commands:
+            analysis = analyzer.analyze(cmd)
+
+            # Create the issue data that would be sent to GitHub
             issue_data = {
-                "title": f"Fix failed command: {cmd.title}",
-                "body": f"""## Failed Command
-```
+                "title": f"Fix: {cmd.title}",
+                "body": f"""## 📋 Command
+```bash
 {cmd.command}
 ```
 
-## Error Output
+## 🚨 Error Output
 ```
 {cmd.error_output}
 ```
 
-## Source
-{cmd.source}""",
-                "labels": ["bug", "automated"],
+## 📝 Metadata
+- **Source:** {cmd.source}
+- **Exit Code:** {getattr(cmd, 'return_code', 'N/A')}
+- **Execution Time:** {getattr(cmd, 'execution_time', 0):.2f}s
+
+## 🏷️ Labels
+- `bug`
+- `automated`
+- `priority:{analysis.priority.value.lower()}`
+- `category:{analysis.category.value.lower()}`
+""",
+                "labels": [
+                    "bug",
+                    "automated",
+                    f"priority:{analysis.priority.value.lower()}",
+                    f"category:{analysis.category.value.lower()}",
+                ],
+            }
+
+            # Add any additional labels from kwargs
+            if "labels" in kwargs:
+                if isinstance(kwargs["labels"], str):
+                    issue_data["labels"].append(kwargs["labels"])
+                else:
+                    issue_data["labels"].extend(kwargs.get("labels", []))
+
+            # Prepare the complete request that would be sent
+            request_info = {
+                "method": "POST",
+                "url": f"{self.base_url}/repos/{owner}/{repo}/issues",
+                "headers": {
+                    "Authorization": f"token {self.token[:8]}...",
+                    "Accept": "application/vnd.github.v3+json",
+                    "Content-Type": "application/json",
+                },
+                "json": issue_data,
             }
 
             if dry_run:
+                # Show the complete request that would be sent
+                rprint(
+                    Panel(
+                        Syntax(
+                            json.dumps(request_info, indent=2, ensure_ascii=False),
+                            "json",
+                            theme="monokai",
+                        ),
+                        title=f"[bold red]REQUEST FOR: {cmd.title}[/]",
+                        border_style="red",
+                    )
+                )
                 created_issues.append(issue_data)
             else:
                 try:
